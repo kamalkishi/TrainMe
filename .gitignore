@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+
+# User-specific
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
