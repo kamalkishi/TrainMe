@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppDestination: Hashable {
-    case dashboard
+    case home
     case profile
     case workout
     case progress

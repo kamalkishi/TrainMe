@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct DashboardView: View {
+struct HomeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -16,11 +16,11 @@ struct DashboardView: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
-            .navigationTitle("Dashboard")
+            .navigationTitle("Home")
         }
     }
 }
 
 #Preview {
-    DashboardView()
+    HomeView()
 }
