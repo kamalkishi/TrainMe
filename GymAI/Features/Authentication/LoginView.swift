@@ -27,16 +27,9 @@ struct LoginView: View {
 
             Spacer()
 
-            Button {
-
+            PrimaryButton(title: "Continue") {
                 appState.transitionToAuthenticated()
-
-            } label: {
-
-                Text("Continue")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
 
         }
         .padding(Spacing.lg)

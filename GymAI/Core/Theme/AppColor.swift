@@ -2,7 +2,9 @@ import SwiftUI
 
 enum AppColor {
 
-    static let background = Color.clear
+    static let background = Color.white
+    
+    static let cardBackground = Color.gray.opacity(0.1)
 
     static let primary = Color.blue
 

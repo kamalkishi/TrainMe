@@ -1,26 +1,31 @@
 import SwiftUI
 
 struct HomeView: View {
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 70))
-                    .foregroundStyle(.blue)
 
-                Text("GymAI")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+        ScrollView {
 
-                Text("Your AI Fitness Companion")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading,
+                   spacing: Spacing.xl) {
+
+                GreetingHeader()
+
+                WorkoutCard()
+
+                AICoachCard()
+
+                Spacer(minLength: Spacing.lg)
             }
-            .navigationTitle("Home")
+            .padding(AppStyle.screenPadding)
         }
+        .background(AppColor.background)
+        .navigationTitle("Home")
     }
 }
 
 #Preview {
-    HomeView()
+    NavigationStack {
+        HomeView()
+    }
 }
