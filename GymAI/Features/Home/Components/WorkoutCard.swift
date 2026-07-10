@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WorkoutCard: View {
-
+    @Environment(NavigationRouter.self) private var router
     var body: some View {
 
         VStack(alignment: .leading,
@@ -18,9 +18,10 @@ struct WorkoutCard: View {
                 .font(AppFont.body)
                 .foregroundStyle(AppColor.textSecondary)
 
-            PrimaryButton(title: "Start Workout") {
-
-                // TODO:
+            NavigationLink {
+                WorkoutLibraryView()
+            } label: {
+                PrimaryButtonLabel(title: "Start Workout")
             }
         }
         .padding(AppStyle.cardPadding)

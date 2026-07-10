@@ -9,20 +9,14 @@ struct PrimaryButton: View {
 
         Button(action: action) {
 
-            Text(title)
-                .font(AppFont.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
+            PrimaryButtonLabel(title: title)
+
         }
-        .background(AppColor.primary)
-        .clipShape(
-            RoundedRectangle(cornerRadius: AppStyle.cornerRadius)
-        )
     }
 }
 
 #Preview {
+
     PrimaryButton(title: "Continue") {
 
     }
