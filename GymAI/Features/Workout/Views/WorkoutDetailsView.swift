@@ -35,9 +35,11 @@ struct WorkoutDetailsView: View {
 
                 } else {
 
-                    ForEach(workout.exercises) { exercise in
+                    ForEach(workout.exercises) { workoutExercise in
 
-                        Text(exercise.name)
+                        WorkoutExerciseCard(
+                            workoutExercise: workoutExercise
+                        )
                     }
                 }
 

@@ -6,7 +6,7 @@ struct Workout: Identifiable, Codable, Hashable {
 
     var name: String
     var type: WorkoutType
-    var exercises: [Exercise]
+    var exercises: [WorkoutExercise]
     var estimatedDuration: TimeInterval
     var description: String
 
@@ -14,7 +14,7 @@ struct Workout: Identifiable, Codable, Hashable {
         id: UUID = UUID(),
         name: String,
         type: WorkoutType,
-        exercises: [Exercise] = [],
+        exercises: [WorkoutExercise] = [],
         estimatedDuration: TimeInterval,
         description: String
     ) {
