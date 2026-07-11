@@ -72,7 +72,7 @@ struct WorkoutSessionView: View {
             PrimaryButton(
                 title: "workout.finish"
             ) {
-                // Completion logic coming next milestone
+                viewModel.finishWorkout()
             }
         }
         .padding(AppStyle.screenPadding)

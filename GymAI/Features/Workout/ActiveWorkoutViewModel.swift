@@ -3,11 +3,17 @@ import SwiftUI
 
 @Observable
 final class ActiveWorkoutViewModel {
-
+    
+    private let repository: WorkoutRepositoryProtocol
+    
     var activeWorkout: ActiveWorkout
 
-    init(workout: Workout) {
+    init(
+        workout: Workout,
+        repository: WorkoutRepositoryProtocol = WorkoutRepository.shared
+    ) {
         self.activeWorkout = ActiveWorkout(workout: workout)
+        self.repository = repository
     }
 
     var workout: Workout {
@@ -83,5 +89,16 @@ final class ActiveWorkoutViewModel {
                 activeWorkout.isCompleted = true
             }
         }
+    }
+    
+    func finishWorkout() {
+
+        let record = WorkoutSessionRecord(
+            workoutName: workout.name,
+            duration: workout.estimatedDuration,
+            exercisesCompleted: workout.exercises.count
+        )
+
+        repository.save(record)
     }
 }
