@@ -43,15 +43,19 @@ struct WorkoutSessionView: View {
 
             HStack(spacing: Spacing.md) {
 
-                Button("Previous") {
+                Button {
                     viewModel.previousExercise()
+                } label: {
+                    Label("Previous", systemImage: "chevron.left")
                 }
                 .disabled(viewModel.isFirstExercise)
 
                 Spacer()
 
-                Button("Next") {
+                Button {
                     viewModel.nextExercise()
+                } label: {
+                    Label("Next", systemImage: "chevron.right")
                 }
                 .disabled(viewModel.isLastExercise)
             }
