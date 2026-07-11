@@ -15,8 +15,7 @@ final class ActiveWorkoutViewModel {
     }
 
     var currentExercise: WorkoutExercise? {
-        guard !workout.exercises.isEmpty else { return nil }
-        return workout.exercises[activeWorkout.currentExerciseIndex]
+        activeWorkout.currentWorkoutExercise
     }
     
     var currentExerciseNumber: Int {

@@ -20,10 +20,18 @@ struct ActiveWorkout {
 
         return workout.exercises[currentExerciseIndex]
     }
+    
+    var hasCurrentExercise: Bool {
+        workout.exercises.indices.contains(currentExerciseIndex)
+    }
 
     var progress: Double {
-        guard !workout.exercises.isEmpty else { return 0 }
-        return Double(currentExerciseIndex) /
-               Double(workout.exercises.count)
+        guard !workout.exercises.isEmpty else {
+            return 0
+        }
+
+        let safeIndex = min(currentExerciseIndex, workout.exercises.count)
+
+        return Double(safeIndex) / Double(workout.exercises.count)
     }
 }

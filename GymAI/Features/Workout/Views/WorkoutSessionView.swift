@@ -39,7 +39,7 @@ struct WorkoutSessionView: View {
                     .foregroundStyle(AppColor.textSecondary)
             }
 
-            Spacer()
+            Spacer(minLength: Spacing.lg)
             
             PrimaryButton(
                 title: "Complete Set"
