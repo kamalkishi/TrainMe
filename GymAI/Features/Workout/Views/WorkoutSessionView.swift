@@ -23,18 +23,15 @@ struct WorkoutSessionView: View {
 
             if let exercise = viewModel.currentExercise {
 
-                VStack(spacing: Spacing.md) {
-
-                    Text(exercise.exercise.name)
-                        .font(AppFont.title)
-
-                    Text("Set \(viewModel.currentSet) of \(exercise.targetSets)")
-
-                    Text("Target: \(exercise.targetReps) reps")
-                    
-                    Text("Rest: \(exercise.restSeconds) sec")
-                        .foregroundStyle(AppColor.textSecondary)
-                }
+                WorkoutProgressCard(
+                    currentExercise: viewModel.currentExerciseNumber,
+                    totalExercises: viewModel.totalExercises,
+                    exerciseName: exercise.exercise.name,
+                    currentSet: viewModel.currentSet,
+                    targetSets: exercise.targetSets,
+                    targetReps: exercise.targetReps,
+                    restSeconds: exercise.restSeconds
+                )
 
             } else {
 
