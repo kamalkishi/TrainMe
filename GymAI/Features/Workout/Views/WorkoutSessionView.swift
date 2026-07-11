@@ -17,9 +17,11 @@ struct WorkoutSessionView: View {
             Text(viewModel.workout.name)
                 .font(AppFont.largeTitle)
             
-            Text("Exercise \(viewModel.currentExerciseNumber) of \(viewModel.totalExercises)")
-                .font(AppFont.headline)
-                .foregroundStyle(AppColor.textSecondary)
+            Text(
+                "workout.exercise_progress \(viewModel.currentExerciseNumber) \(viewModel.totalExercises)"
+            )
+            .font(AppFont.headline)
+            .foregroundStyle(AppColor.textSecondary)
 
             if let exercise = viewModel.currentExercise {
 
