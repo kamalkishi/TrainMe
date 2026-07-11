@@ -2,24 +2,61 @@ import SwiftUI
 
 struct WorkoutSessionView: View {
 
-    let workout: Workout
+    @State private var viewModel: ActiveWorkoutViewModel
+
+    init(workout: Workout) {
+        _viewModel = State(
+            initialValue: ActiveWorkoutViewModel(workout: workout)
+        )
+    }
 
     var body: some View {
 
-        VStack(spacing: Spacing.lg) {
+        VStack(spacing: Spacing.xl) {
 
-            Text("Workout in Progress")
+            Text(viewModel.workout.name)
                 .font(AppFont.largeTitle)
 
-            Text(workout.name)
-                .font(AppFont.title)
+            if let exercise = viewModel.currentExercise {
 
-            Text("AI camera integration coming soon.")
-                .foregroundStyle(AppColor.textSecondary)
+                VStack(spacing: Spacing.md) {
+
+                    Text(exercise.exercise.name)
+                        .font(AppFont.title)
+
+                    Text("Set \(viewModel.currentSet) of \(exercise.targetSets)")
+
+                    Text("Target: \(exercise.targetReps) reps")
+                }
+
+            } else {
+
+                Text("No exercises available.")
+                    .foregroundStyle(AppColor.textSecondary)
+            }
 
             Spacer()
+
+            HStack(spacing: Spacing.md) {
+
+                Button("Previous") {
+                    viewModel.previousExercise()
+                }
+
+                Spacer()
+
+                Button("Next") {
+                    viewModel.nextExercise()
+                }
+            }
+
+            PrimaryButton(
+                title: "Finish Workout"
+            ) {
+                // Completion logic coming next milestone
+            }
         }
-        .padding()
+        .padding(AppStyle.screenPadding)
         .navigationTitle("Workout")
     }
 }
