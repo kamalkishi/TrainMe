@@ -38,6 +38,10 @@ final class ActiveWorkoutViewModel {
     var currentSet: Int {
         activeWorkout.currentSet
     }
+    
+    var isWorkoutCompleted: Bool {
+        activeWorkout.isCompleted
+    }
 
     func nextExercise() {
         guard activeWorkout.currentExerciseIndex < workout.exercises.count - 1 else {
@@ -59,8 +63,10 @@ final class ActiveWorkoutViewModel {
     
     func completeSet() {
 
-        let workoutExercise = activeWorkout.currentWorkoutExercise
-
+        guard let workoutExercise = activeWorkout.currentWorkoutExercise else {
+            return
+        }
+        
         if activeWorkout.currentSet < workoutExercise.targetSets {
 
             activeWorkout.currentSet += 1

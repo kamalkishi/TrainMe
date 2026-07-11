@@ -13,8 +13,12 @@ struct ActiveWorkout {
     var isRunning = false
     var isCompleted = false
 
-    var currentWorkoutExercise: WorkoutExercise {
-        workout.exercises[currentExerciseIndex]
+    var currentWorkoutExercise: WorkoutExercise? {
+        guard workout.exercises.indices.contains(currentExerciseIndex) else {
+            return nil
+        }
+
+        return workout.exercises[currentExerciseIndex]
     }
 
     var progress: Double {

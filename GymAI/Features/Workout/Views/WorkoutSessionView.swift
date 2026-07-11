@@ -40,7 +40,14 @@ struct WorkoutSessionView: View {
             }
 
             Spacer()
-
+            
+            PrimaryButton(
+                title: "Complete Set"
+            ) {
+                viewModel.completeSet()
+            }
+            .disabled(viewModel.isWorkoutCompleted)
+            
             HStack(spacing: Spacing.md) {
 
                 Button {
