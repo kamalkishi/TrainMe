@@ -56,4 +56,27 @@ final class ActiveWorkoutViewModel {
         activeWorkout.currentExerciseIndex -= 1
         activeWorkout.currentSet = 1
     }
+    
+    func completeSet() {
+
+        let workoutExercise = activeWorkout.currentWorkoutExercise
+
+        if activeWorkout.currentSet < workoutExercise.targetSets {
+
+            activeWorkout.currentSet += 1
+
+        } else {
+
+            activeWorkout.currentSet = 1
+
+            if activeWorkout.currentExerciseIndex < workout.exercises.count - 1 {
+
+                activeWorkout.currentExerciseIndex += 1
+
+            } else {
+
+                activeWorkout.isCompleted = true
+            }
+        }
+    }
 }
