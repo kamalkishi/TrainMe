@@ -16,6 +16,10 @@ struct WorkoutSessionView: View {
 
             Text(viewModel.workout.name)
                 .font(AppFont.largeTitle)
+            
+            Text("Exercise \(viewModel.currentExerciseNumber) of \(viewModel.totalExercises)")
+                .font(AppFont.headline)
+                .foregroundStyle(AppColor.textSecondary)
 
             if let exercise = viewModel.currentExercise {
 
@@ -27,6 +31,9 @@ struct WorkoutSessionView: View {
                     Text("Set \(viewModel.currentSet) of \(exercise.targetSets)")
 
                     Text("Target: \(exercise.targetReps) reps")
+                    
+                    Text("Rest: \(exercise.restSeconds) sec")
+                        .foregroundStyle(AppColor.textSecondary)
                 }
 
             } else {
@@ -42,12 +49,14 @@ struct WorkoutSessionView: View {
                 Button("Previous") {
                     viewModel.previousExercise()
                 }
+                .disabled(viewModel.isFirstExercise)
 
                 Spacer()
 
                 Button("Next") {
                     viewModel.nextExercise()
                 }
+                .disabled(viewModel.isLastExercise)
             }
 
             PrimaryButton(

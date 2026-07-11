@@ -18,6 +18,22 @@ final class ActiveWorkoutViewModel {
         guard !workout.exercises.isEmpty else { return nil }
         return workout.exercises[activeWorkout.currentExerciseIndex]
     }
+    
+    var currentExerciseNumber: Int {
+        activeWorkout.currentExerciseIndex + 1
+    }
+
+    var totalExercises: Int {
+        workout.exercises.count
+    }
+
+    var isFirstExercise: Bool {
+        activeWorkout.currentExerciseIndex == 0
+    }
+
+    var isLastExercise: Bool {
+        activeWorkout.currentExerciseIndex == workout.exercises.count - 1
+    }
 
     var currentSet: Int {
         activeWorkout.currentSet
