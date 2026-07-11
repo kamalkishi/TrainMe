@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PrimaryButtonLabel: View {
 
-    let title: String
+    let title: LocalizedStringKey
 
     var body: some View {
 

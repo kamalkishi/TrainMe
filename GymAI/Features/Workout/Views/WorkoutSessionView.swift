@@ -35,14 +35,14 @@ struct WorkoutSessionView: View {
 
             } else {
 
-                Text("No exercises available.")
+                Text("workout.no_exercises")
                     .foregroundStyle(AppColor.textSecondary)
             }
 
             Spacer(minLength: Spacing.lg)
             
             PrimaryButton(
-                title: "Complete Set"
+                title: "workout.complete_set"
             ) {
                 viewModel.completeSet()
             }
@@ -53,7 +53,7 @@ struct WorkoutSessionView: View {
                 Button {
                     viewModel.previousExercise()
                 } label: {
-                    Label("Previous", systemImage: "chevron.left")
+                    Label("common.previous", systemImage: "chevron.left")
                 }
                 .disabled(viewModel.isFirstExercise)
 
@@ -62,19 +62,19 @@ struct WorkoutSessionView: View {
                 Button {
                     viewModel.nextExercise()
                 } label: {
-                    Label("Next", systemImage: "chevron.right")
+                    Label("common.next", systemImage: "chevron.right")
                 }
                 .disabled(viewModel.isLastExercise)
             }
 
             PrimaryButton(
-                title: "Finish Workout"
+                title: "workout.finish"
             ) {
                 // Completion logic coming next milestone
             }
         }
         .padding(AppStyle.screenPadding)
-        .navigationTitle("Workout")
+        .navigationTitle("workout.title")
     }
 }
 
