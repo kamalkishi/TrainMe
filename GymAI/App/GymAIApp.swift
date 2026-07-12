@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct GymAIApp: App {
@@ -11,5 +12,9 @@ struct GymAIApp: App {
             RootView()
                 .environmentObject(appStateManager)
         }
+        .modelContainer(for: [
+            WorkoutSessionEntity.self,
+            WorkoutHistoryEntity.self
+        ])
     }
 }

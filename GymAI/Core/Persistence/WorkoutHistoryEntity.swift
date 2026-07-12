@@ -1,19 +1,26 @@
 import Foundation
+import SwiftData
 
-struct WorkoutSessionRecord: Identifiable, Codable, Hashable {
+@Model
+final class WorkoutHistoryEntity {
 
-    let id: UUID
-    let workoutName: String
-    let startedAt: Date
-    let completedAt: Date
-    let duration: TimeInterval
-    let exercisesCompleted: Int
+    @Attribute(.unique)
+    var id: UUID
+
+    var workoutName: String
+
+    var startedAt: Date
+    var completedAt: Date
+
+    var duration: TimeInterval
+
+    var exercisesCompleted: Int
 
     init(
         id: UUID = UUID(),
         workoutName: String,
-        startedAt: Date = .now,
-        completedAt: Date = .now,
+        startedAt: Date,
+        completedAt: Date,
         duration: TimeInterval,
         exercisesCompleted: Int
     ) {

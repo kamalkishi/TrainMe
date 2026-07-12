@@ -12,6 +12,8 @@ struct HomeView: View {
 
                 WorkoutCard()
 
+                WorkoutHistoryCard()
+
                 AICoachCard()
 
                 Spacer(minLength: Spacing.lg)

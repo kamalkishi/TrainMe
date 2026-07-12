@@ -1,25 +1,27 @@
 import Foundation
+import SwiftData
 
-struct WorkoutSession: Identifiable, Codable, Hashable {
+@Model
+final class WorkoutSessionEntity {
 
-    let id: UUID
+    @Attribute(.unique)
+    var id: UUID
 
-    var workout: Workout
+    var workoutName: String
 
     var startedAt: Date
     var endedAt: Date?
 
     var completed: Bool
 
-    // NEW
     var currentExerciseIndex: Int
     var currentSet: Int
     var completedExercises: Int
 
     init(
         id: UUID = UUID(),
-        workout: Workout,
-        startedAt: Date = Date(),
+        workoutName: String,
+        startedAt: Date = .now,
         endedAt: Date? = nil,
         completed: Bool = false,
         currentExerciseIndex: Int = 0,
@@ -27,7 +29,7 @@ struct WorkoutSession: Identifiable, Codable, Hashable {
         completedExercises: Int = 0
     ) {
         self.id = id
-        self.workout = workout
+        self.workoutName = workoutName
         self.startedAt = startedAt
         self.endedAt = endedAt
         self.completed = completed

@@ -14,6 +14,8 @@ final class ActiveWorkoutViewModel {
     ) {
         self.activeWorkout = ActiveWorkout(workout: workout)
         self.repository = repository
+
+        repository.startSession(for: workout)
     }
 
     var workout: Workout {
@@ -55,6 +57,7 @@ final class ActiveWorkoutViewModel {
 
         activeWorkout.currentExerciseIndex += 1
         activeWorkout.currentSet = 1
+        syncSession()
     }
 
     func previousExercise() {
@@ -64,6 +67,7 @@ final class ActiveWorkoutViewModel {
 
         activeWorkout.currentExerciseIndex -= 1
         activeWorkout.currentSet = 1
+        syncSession()
     }
     
     func completeSet() {
@@ -83,22 +87,56 @@ final class ActiveWorkoutViewModel {
             if activeWorkout.currentExerciseIndex < workout.exercises.count - 1 {
 
                 activeWorkout.currentExerciseIndex += 1
+                syncSession()
 
             } else {
-
                 activeWorkout.isCompleted = true
+
+                if var session = repository.fetchActiveSession() {
+                    session.completedExercises = workout.exercises.count
+                    repository.updateSession(session)
+                }
             }
         }
     }
     
     func finishWorkout() {
 
+        guard var session = repository.fetchActiveSession() else {
+            return
+        }
+
+        session.completed = true
+        session.endedAt = Date()
+
+        repository.updateSession(session)
+
+        let duration = session.endedAt?.timeIntervalSince(session.startedAt) ?? 0
+
         let record = WorkoutSessionRecord(
-            workoutName: workout.name,
-            duration: workout.estimatedDuration,
-            exercisesCompleted: workout.exercises.count
+            workoutName: session.workout.name,
+            completedAt: session.endedAt ?? .now,
+            duration: duration,
+            exercisesCompleted: session.completedExercises
         )
 
         repository.save(record)
+
+        repository.clearActiveSession()
+
+        activeWorkout.isCompleted = true
+    }
+    
+    private func syncSession() {
+
+        guard var session = repository.fetchActiveSession() else {
+            return
+        }
+
+        session.currentExerciseIndex = activeWorkout.currentExerciseIndex
+        session.currentSet = activeWorkout.currentSet
+        session.completedExercises = activeWorkout.currentExerciseIndex
+
+        repository.updateSession(session)
     }
 }
