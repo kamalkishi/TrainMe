@@ -13,6 +13,7 @@ struct GymAIApp: App {
                 .environmentObject(appStateManager)
         }
         .modelContainer(for: [
+            WorkoutEntity.self,
             WorkoutSessionEntity.self,
             WorkoutHistoryEntity.self
         ])

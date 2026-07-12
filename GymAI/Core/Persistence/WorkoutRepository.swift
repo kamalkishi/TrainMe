@@ -22,22 +22,18 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
     // MARK: - Active Session
 
     func startSession(for workout: Workout) {
-
         activeSession = WorkoutSession(workout: workout)
     }
 
     func fetchActiveSession() -> WorkoutSession? {
-
         activeSession
     }
 
     func updateSession(_ session: WorkoutSession) {
-
         activeSession = session
     }
 
     func clearActiveSession() {
-
         activeSession = nil
     }
 
