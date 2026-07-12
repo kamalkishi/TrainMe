@@ -8,10 +8,16 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
     static let shared = WorkoutRepository()
 
     private init() {}
+    
+    private var persistence: WorkoutPersistence?
 
     var activeSession: WorkoutSession?
 
     var history: [WorkoutSessionRecord] = []
+    
+    func configure(with persistence: WorkoutPersistence) {
+        self.persistence = persistence
+    }
 
     // MARK: - Active Session
 
