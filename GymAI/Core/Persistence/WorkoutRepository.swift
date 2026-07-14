@@ -10,6 +10,8 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
     private init() {}
     
     private var persistence: WorkoutPersistence?
+    
+    private var activeSessionID: UUID?
 
     var activeSession: WorkoutSession?
 
@@ -22,11 +24,46 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
     // MARK: - Active Session
 
     func startSession(for workout: Workout) {
-        activeSession = WorkoutSession(workout: workout)
+
+        let session = WorkoutSession(workout: workout)
+
+        activeSession = session
+
+        guard let persistence else {
+            return
+        }
+
+        do {
+            let entity = try persistence.startWorkout(session)
+
+            activeSessionID = entity.id
+
+        } catch {
+
+            print("Failed to start workout session: \(error)")
+        }
     }
 
     func fetchActiveSession() -> WorkoutSession? {
-        activeSession
+
+        if let activeSession {
+            return activeSession
+        }
+
+        guard let persistence else {
+            return nil
+        }
+
+        do {
+            let session = try persistence.loadActiveSession()
+            activeSession = session
+
+            // We'll populate activeSessionID in the next milestone.
+            return session
+        } catch {
+            print("Failed to load active session: \(error)")
+            return nil
+        }
     }
 
     func updateSession(_ session: WorkoutSession) {
@@ -35,13 +72,23 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
 
     func clearActiveSession() {
         activeSession = nil
+        activeSessionID = nil
     }
 
     // MARK: - History
 
     func fetchWorkoutHistory() -> [WorkoutSessionRecord] {
 
-        history
+        guard let persistence else {
+            return history
+        }
+
+        do {
+            return try persistence.fetchWorkoutHistory()
+        } catch {
+            print("Failed to fetch workout history: \(error)")
+            return history
+        }
     }
 
     func save(_ workout: WorkoutSessionRecord) {

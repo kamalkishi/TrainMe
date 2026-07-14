@@ -38,3 +38,20 @@ extension WorkoutSession {
         entity.completedExercises = completedExercises
     }
 }
+
+extension WorkoutSessionEntity {
+
+    convenience init(session: WorkoutSession) {
+
+        self.init(
+            id: session.id,
+            workoutName: session.workout.name,
+            startedAt: session.startedAt,
+            endedAt: session.endedAt,
+            completed: session.completed,
+            currentExerciseIndex: session.currentExerciseIndex,
+            currentSet: session.currentSet,
+            completedExercises: session.completedExercises
+        )
+    }
+}
