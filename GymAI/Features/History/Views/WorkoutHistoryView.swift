@@ -21,14 +21,21 @@ struct WorkoutHistoryView: View {
 
                 List(viewModel.history) { workout in
 
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                    NavigationLink {
 
-                        Text(workout.workoutName)
-                            .font(AppFont.headline)
+                        WorkoutHistoryDetailView(record: workout)
 
-                        Text(workout.completedAt, style: .date)
-                            .font(AppFont.caption)
-                            .foregroundStyle(AppColor.textSecondary)
+                    } label: {
+
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+
+                            Text(workout.workoutName)
+                                .font(AppFont.headline)
+
+                            Text(workout.completedAt, style: .date)
+                                .font(AppFont.caption)
+                                .foregroundStyle(AppColor.textSecondary)
+                        }
                     }
                 }
             }

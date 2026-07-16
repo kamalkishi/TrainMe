@@ -15,6 +15,8 @@ struct WorkoutSession: Identifiable, Codable, Hashable {
     var currentExerciseIndex: Int
     var currentSet: Int
     var completedExercises: Int
+    var completedReps: Int
+    var elapsedTime: TimeInterval
 
     init(
         id: UUID = UUID(),
@@ -24,7 +26,9 @@ struct WorkoutSession: Identifiable, Codable, Hashable {
         completed: Bool = false,
         currentExerciseIndex: Int = 0,
         currentSet: Int = 1,
-        completedExercises: Int = 0
+        completedExercises: Int = 0,
+        completedReps: Int = 0,
+        elapsedTime: TimeInterval = 0
     ) {
         self.id = id
         self.workout = workout
@@ -34,5 +38,7 @@ struct WorkoutSession: Identifiable, Codable, Hashable {
         self.currentExerciseIndex = currentExerciseIndex
         self.currentSet = currentSet
         self.completedExercises = completedExercises
+        self.completedReps = completedReps
+        self.elapsedTime = elapsedTime
     }
 }

@@ -1,20 +1,29 @@
 import SwiftUI
+import SwiftData
 
 struct RootView: View {
 
     @EnvironmentObject private var appState: AppStateManager
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        switch appState.state {
+        Group {
+            switch appState.state {
 
-        case .launching:
-            SplashView()
+            case .launching:
+                SplashView()
 
-        case .unauthenticated:
-            LoginView()
+            case .unauthenticated:
+                LoginView()
 
-        case .authenticated:
-            MainTabView()
+            case .authenticated:
+                MainTabView()
+            }
+        }
+        .onAppear {
+            WorkoutRepository.shared.configure(
+                with: WorkoutPersistence(modelContext: modelContext)
+            )
         }
     }
 }
@@ -22,4 +31,12 @@ struct RootView: View {
 #Preview {
     RootView()
         .environmentObject(AppStateManager())
+        .modelContainer(
+            for: [
+                WorkoutEntity.self,
+                WorkoutSessionEntity.self,
+                WorkoutHistoryEntity.self
+            ],
+            inMemory: true
+        )
 }

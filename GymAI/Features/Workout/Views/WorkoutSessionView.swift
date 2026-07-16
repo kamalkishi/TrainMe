@@ -10,6 +10,12 @@ struct WorkoutSessionView: View {
         )
     }
 
+    init(session: WorkoutSession) {
+        _viewModel = State(
+            initialValue: ActiveWorkoutViewModel(session: session)
+        )
+    }
+
     var body: some View {
 
         VStack(spacing: Spacing.xl) {

@@ -10,6 +10,10 @@ import SwiftData
 @MainActor
 final class WorkoutPersistence {
 
+    enum PersistenceError: Error {
+        case sessionNotFound(UUID)
+    }
+
     private let modelContext: ModelContext
 
     init(modelContext: ModelContext) {
@@ -40,17 +44,18 @@ final class WorkoutPersistence {
         )
 
         if let existing = try modelContext.fetch(descriptor).first {
+            try WorkoutMapper.update(existing, from: workout)
             return existing
         }
 
-        let entity = WorkoutMapper.entity(from: workout)
+        let entity = try WorkoutMapper.entity(from: workout)
         modelContext.insert(entity)
 
         return entity
     }
     
     func saveSession(
-        _ activeWorkout: ActiveWorkout,
+        _ session: WorkoutSession,
         sessionID: UUID
     ) throws {
 
@@ -60,19 +65,24 @@ final class WorkoutPersistence {
             }
         )
 
-        guard let session = try modelContext.fetch(descriptor).first else {
-            return
+        guard let entity = try modelContext.fetch(descriptor).first else {
+            throw PersistenceError.sessionNotFound(sessionID)
         }
 
-        session.currentExerciseIndex = activeWorkout.currentExerciseIndex
-        session.currentSet = activeWorkout.currentSet
-        session.completedExercises = activeWorkout.currentExerciseIndex
-        session.completedReps = activeWorkout.completedReps
-        session.elapsedTime = activeWorkout.elapsedTime
-        session.completed = activeWorkout.isCompleted
+        entity.workoutName = session.workout.name
+        entity.startedAt = session.startedAt
+        entity.endedAt = session.endedAt
+        entity.completed = session.completed
+        entity.currentExerciseIndex = session.currentExerciseIndex
+        entity.currentSet = session.currentSet
+        entity.completedExercises = session.completedExercises
+        entity.completedReps = session.completedReps
+        entity.elapsedTime = session.elapsedTime
 
-        if activeWorkout.isCompleted {
-            session.endedAt = .now
+        if let workoutEntity = entity.workout {
+            try WorkoutMapper.update(workoutEntity, from: session.workout)
+        } else {
+            entity.workout = try workoutEntity(for: session.workout)
         }
 
         try modelContext.save()
@@ -83,17 +93,20 @@ final class WorkoutPersistence {
         let descriptor = FetchDescriptor<WorkoutSessionEntity>(
             predicate: #Predicate<WorkoutSessionEntity> {
                 $0.completed == false
-            }
+            },
+            sortBy: [
+                SortDescriptor(\.startedAt, order: .reverse)
+            ]
         )
 
         guard let entity = try modelContext.fetch(descriptor).first else {
             return nil
         }
 
-        return WorkoutSession(entity: entity)
+        return try WorkoutSession(entity: entity)
     }
     
-    func completeSession(sessionID: UUID) throws {
+    func completeSession(sessionID: UUID) throws -> WorkoutSessionRecord {
 
         let descriptor = FetchDescriptor<WorkoutSessionEntity>(
             predicate: #Predicate {
@@ -101,23 +114,77 @@ final class WorkoutPersistence {
             }
         )
 
-        guard let session = try modelContext.fetch(descriptor).first else {
-            return
-        }
-
-        let history = WorkoutHistoryEntity(
-            workoutName: session.workoutName,
-            startedAt: session.startedAt,
-            completedAt: session.endedAt ?? .now,
-            duration: session.elapsedTime,
-            exercisesCompleted: session.completedExercises
+        let historyDescriptor = FetchDescriptor<WorkoutHistoryEntity>(
+            predicate: #Predicate {
+                $0.id == sessionID
+            }
         )
 
-        modelContext.insert(history)
+        let existingHistory = try modelContext.fetch(historyDescriptor).first
 
-        modelContext.delete(session)
+        guard let session = try modelContext.fetch(descriptor).first else {
+            if let existingHistory {
+                return WorkoutSessionRecord(
+                    id: existingHistory.id,
+                    workoutName: existingHistory.workoutName,
+                    startedAt: existingHistory.startedAt,
+                    completedAt: existingHistory.completedAt,
+                    duration: existingHistory.duration,
+                    exercisesCompleted: existingHistory.exercisesCompleted
+                )
+            }
 
-        try modelContext.save()
+            throw PersistenceError.sessionNotFound(sessionID)
+        }
+
+        if let existingHistory {
+            modelContext.delete(session)
+            try modelContext.save()
+
+            return WorkoutSessionRecord(
+                id: existingHistory.id,
+                workoutName: existingHistory.workoutName,
+                startedAt: existingHistory.startedAt,
+                completedAt: existingHistory.completedAt,
+                duration: existingHistory.duration,
+                exercisesCompleted: existingHistory.exercisesCompleted
+            )
+        } else {
+            session.completed = true
+
+            if session.endedAt == nil {
+                session.endedAt = .now
+            }
+
+            let completedAt = session.endedAt ?? .now
+            let duration = session.elapsedTime > 0
+                ? session.elapsedTime
+                : completedAt.timeIntervalSince(session.startedAt)
+
+            let history = WorkoutHistoryEntity(
+                id: session.id,
+                workoutName: session.workoutName,
+                startedAt: session.startedAt,
+                completedAt: completedAt,
+                duration: duration,
+                exercisesCompleted: session.completedExercises
+            )
+
+            modelContext.insert(history)
+
+            modelContext.delete(session)
+
+            try modelContext.save()
+
+            return WorkoutSessionRecord(
+                id: history.id,
+                workoutName: history.workoutName,
+                startedAt: history.startedAt,
+                completedAt: history.completedAt,
+                duration: history.duration,
+                exercisesCompleted: history.exercisesCompleted
+            )
+        }
     }
     
     func fetchWorkoutHistory() throws -> [WorkoutSessionRecord] {
@@ -141,5 +208,22 @@ final class WorkoutPersistence {
                 exercisesCompleted: $0.exercisesCompleted
             )
         }
+    }
+
+    func deleteSession(sessionID: UUID) throws {
+
+        let descriptor = FetchDescriptor<WorkoutSessionEntity>(
+            predicate: #Predicate {
+                $0.id == sessionID && $0.completed == false
+            }
+        )
+
+        guard let session = try modelContext.fetch(descriptor).first else {
+            return
+        }
+
+        modelContext.delete(session)
+
+        try modelContext.save()
     }
 }

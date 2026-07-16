@@ -6,24 +6,29 @@
 //
 import Foundation
 
+enum WorkoutSessionMappingError: Error {
+    case missingWorkoutRelationship(UUID)
+}
+
 extension WorkoutSession {
 
-    init(entity: WorkoutSessionEntity) {
+    init(entity: WorkoutSessionEntity) throws {
+
+        guard let workoutEntity = entity.workout else {
+            throw WorkoutSessionMappingError.missingWorkoutRelationship(entity.id)
+        }
 
         self.init(
             id: entity.id,
-            workout: Workout(
-                name: entity.workoutName,
-                type: .strength,
-                estimatedDuration: 0,
-                description: ""
-            ),
+            workout: try WorkoutMapper.workout(from: workoutEntity),
             startedAt: entity.startedAt,
             endedAt: entity.endedAt,
             completed: entity.completed,
             currentExerciseIndex: entity.currentExerciseIndex,
             currentSet: entity.currentSet,
-            completedExercises: entity.completedExercises
+            completedExercises: entity.completedExercises,
+            completedReps: entity.completedReps,
+            elapsedTime: entity.elapsedTime
         )
     }
 
@@ -36,6 +41,8 @@ extension WorkoutSession {
         entity.currentExerciseIndex = currentExerciseIndex
         entity.currentSet = currentSet
         entity.completedExercises = completedExercises
+        entity.completedReps = completedReps
+        entity.elapsedTime = elapsedTime
     }
 }
 
@@ -51,7 +58,9 @@ extension WorkoutSessionEntity {
             completed: session.completed,
             currentExerciseIndex: session.currentExerciseIndex,
             currentSet: session.currentSet,
-            completedExercises: session.completedExercises
+            completedExercises: session.completedExercises,
+            completedReps: session.completedReps,
+            elapsedTime: session.elapsedTime
         )
     }
 }

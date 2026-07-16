@@ -4,6 +4,8 @@ struct WorkoutDetailsView: View {
 
     let workout: Workout
 
+    @State private var viewModel = WorkoutDetailsViewModel()
+
     var body: some View {
 
         ScrollView {
@@ -45,18 +47,22 @@ struct WorkoutDetailsView: View {
 
                 Spacer(minLength: Spacing.lg)
 
-                NavigationLink {
-
-                    WorkoutSessionView(workout: workout)
-
+                Button {
+                    viewModel.startWorkout(workout)
                 } label: {
-
-                    PrimaryButtonLabel(title: "Start Workout")
+                    PrimaryButtonLabel(title: "workout.start")
                 }
             }
             .padding(AppStyle.screenPadding)
         }
         .navigationTitle(workout.name)
+        .navigationDestination(item: $viewModel.sessionToContinue) { session in
+            WorkoutSessionView(session: session)
+        }
+        .navigationDestination(item: $viewModel.freshWorkoutDestination) { destination in
+            WorkoutSessionView(workout: destination.workout)
+                .id(destination.id)
+        }
         //.navigationBarTitleDisplayMode(.inline)
     }
 }

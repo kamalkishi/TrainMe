@@ -12,6 +12,9 @@ protocol WorkoutRepositoryProtocol {
 
     func clearActiveSession()
 
+    @discardableResult
+    func abandonActiveSession() -> Bool
+
     // MARK: - History
 
     func fetchWorkoutHistory() -> [WorkoutSessionRecord]

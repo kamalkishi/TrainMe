@@ -2,20 +2,45 @@ import Foundation
 import SwiftUI
 
 @Observable
+@MainActor
 final class ActiveWorkoutViewModel {
     
     private let repository: WorkoutRepositoryProtocol
     
     var activeWorkout: ActiveWorkout
 
+    init(workout: Workout) {
+        self.activeWorkout = ActiveWorkout(workout: workout)
+        self.repository = WorkoutRepository.shared
+
+        repository.startSession(for: workout)
+    }
+
     init(
         workout: Workout,
-        repository: WorkoutRepositoryProtocol = WorkoutRepository.shared
+        repository: WorkoutRepositoryProtocol
     ) {
         self.activeWorkout = ActiveWorkout(workout: workout)
         self.repository = repository
 
         repository.startSession(for: workout)
+    }
+
+    init(session: WorkoutSession) {
+        self.repository = WorkoutRepository.shared
+        self.activeWorkout = ActiveWorkout(session: session)
+
+        repository.updateSession(session)
+    }
+
+    init(
+        session: WorkoutSession,
+        repository: WorkoutRepositoryProtocol
+    ) {
+        self.repository = repository
+        self.activeWorkout = ActiveWorkout(session: session)
+
+        repository.updateSession(session)
     }
 
     var workout: Workout {
@@ -39,7 +64,11 @@ final class ActiveWorkoutViewModel {
     }
 
     var isLastExercise: Bool {
-        activeWorkout.currentExerciseIndex == workout.exercises.count - 1
+        guard !workout.exercises.isEmpty else {
+            return true
+        }
+
+        return activeWorkout.currentExerciseIndex == workout.exercises.count - 1
     }
 
     var currentSet: Int {
@@ -78,10 +107,13 @@ final class ActiveWorkoutViewModel {
         
         if activeWorkout.currentSet < workoutExercise.targetSets {
 
+            activeWorkout.completedReps += workoutExercise.targetReps
             activeWorkout.currentSet += 1
+            syncSession()
 
         } else {
 
+            activeWorkout.completedReps += workoutExercise.targetReps
             activeWorkout.currentSet = 1
 
             if activeWorkout.currentExerciseIndex < workout.exercises.count - 1 {
@@ -94,6 +126,8 @@ final class ActiveWorkoutViewModel {
 
                 if var session = repository.fetchActiveSession() {
                     session.completedExercises = workout.exercises.count
+                    session.completedReps = activeWorkout.completedReps
+                    session.elapsedTime = Date().timeIntervalSince(session.startedAt)
                     repository.updateSession(session)
                 }
             }
@@ -108,21 +142,21 @@ final class ActiveWorkoutViewModel {
 
         session.completed = true
         session.endedAt = Date()
+        session.completedReps = activeWorkout.completedReps
+        session.elapsedTime = session.endedAt?.timeIntervalSince(session.startedAt) ?? 0
 
         repository.updateSession(session)
 
-        let duration = session.endedAt?.timeIntervalSince(session.startedAt) ?? 0
-
         let record = WorkoutSessionRecord(
+            id: session.id,
             workoutName: session.workout.name,
+            startedAt: session.startedAt,
             completedAt: session.endedAt ?? .now,
-            duration: duration,
+            duration: session.elapsedTime,
             exercisesCompleted: session.completedExercises
         )
 
         repository.save(record)
-
-        repository.clearActiveSession()
 
         activeWorkout.isCompleted = true
     }
@@ -136,6 +170,8 @@ final class ActiveWorkoutViewModel {
         session.currentExerciseIndex = activeWorkout.currentExerciseIndex
         session.currentSet = activeWorkout.currentSet
         session.completedExercises = activeWorkout.currentExerciseIndex
+        session.completedReps = activeWorkout.completedReps
+        session.elapsedTime = Date().timeIntervalSince(session.startedAt)
 
         repository.updateSession(session)
     }
