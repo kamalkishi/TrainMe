@@ -18,8 +18,12 @@ struct WorkoutCard: View {
                 .font(AppFont.body)
                 .foregroundStyle(AppColor.textSecondary)
 
-            NavigationLink {
-                WorkoutLibraryView()
+            Button {
+                WorkoutLifecycleLog.event(
+                    "WorkoutCard.startWorkoutTapped",
+                    ["navigationRouter.pathCount=\(router.path.count)"]
+                )
+                router.push(.workout)
             } label: {
                 PrimaryButtonLabel(title: "Start Workout")
             }
@@ -36,5 +40,6 @@ struct WorkoutCard: View {
 
 #Preview {
     WorkoutCard()
+        .environment(NavigationRouter())
         .padding()
 }

@@ -3,10 +3,23 @@ import SwiftUI
 struct WorkoutDetailsView: View {
 
     let workout: Workout
+    let onWorkoutCompleted: (UUID) -> Void
 
     @State private var viewModel = WorkoutDetailsViewModel()
 
+    init(
+        workout: Workout,
+        onWorkoutCompleted: @escaping (UUID) -> Void = { _ in }
+    ) {
+        self.workout = workout
+        self.onWorkoutCompleted = onWorkoutCompleted
+    }
+
     var body: some View {
+        let _ = WorkoutLifecycleLog.event(
+            "WorkoutDetailsView.body",
+            WorkoutLifecycleLog.workout(workout)
+        )
 
         ScrollView {
 
@@ -48,6 +61,10 @@ struct WorkoutDetailsView: View {
                 Spacer(minLength: Spacing.lg)
 
                 Button {
+                    WorkoutLifecycleLog.event(
+                        "WorkoutDetailsView.startWorkoutTapped",
+                        WorkoutLifecycleLog.workout(workout)
+                    )
                     viewModel.startWorkout(workout)
                 } label: {
                     PrimaryButtonLabel(title: "workout.start")
@@ -57,10 +74,25 @@ struct WorkoutDetailsView: View {
         }
         .navigationTitle(workout.name)
         .navigationDestination(item: $viewModel.sessionToContinue) { session in
-            WorkoutSessionView(session: session)
+            let _ = WorkoutLifecycleLog.event(
+                "WorkoutDetailsView.navigationDestination.resumeSession",
+                WorkoutLifecycleLog.session(session)
+            )
+            WorkoutSessionView(
+                session: session,
+                onWorkoutCompleted: onWorkoutCompleted
+            )
         }
         .navigationDestination(item: $viewModel.freshWorkoutDestination) { destination in
-            WorkoutSessionView(workout: destination.workout)
+            let _ = WorkoutLifecycleLog.event(
+                "WorkoutDetailsView.navigationDestination.freshWorkout",
+                WorkoutLifecycleLog.workout(destination.workout)
+                + ["freshDestination.id=\(destination.id)"]
+            )
+            WorkoutSessionView(
+                workout: destination.workout,
+                onWorkoutCompleted: onWorkoutCompleted
+            )
                 .id(destination.id)
         }
         //.navigationBarTitleDisplayMode(.inline)

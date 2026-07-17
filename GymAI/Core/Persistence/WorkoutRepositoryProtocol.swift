@@ -13,6 +13,9 @@ protocol WorkoutRepositoryProtocol {
     func clearActiveSession()
 
     @discardableResult
+    func clearActiveSession(ifSessionID sessionID: UUID) -> Bool
+
+    @discardableResult
     func abandonActiveSession() -> Bool
 
     // MARK: - History

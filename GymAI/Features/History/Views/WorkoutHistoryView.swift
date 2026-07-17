@@ -6,6 +6,7 @@ struct WorkoutHistoryView: View {
     private var viewModel = WorkoutHistoryViewModel()
 
     var body: some View {
+        let _ = WorkoutLifecycleLog.event("WorkoutHistoryView.body")
 
         Group {
 

@@ -3,6 +3,11 @@ import SwiftUI
 struct WorkoutLibraryView: View {
 
     private let workoutService = WorkoutService()
+    private let onWorkoutCompleted: (UUID) -> Void
+
+    init(onWorkoutCompleted: @escaping (UUID) -> Void = { _ in }) {
+        self.onWorkoutCompleted = onWorkoutCompleted
+    }
 
     var body: some View {
 
@@ -10,7 +15,10 @@ struct WorkoutLibraryView: View {
 
             NavigationLink {
 
-                WorkoutDetailsView(workout: workout)
+                WorkoutDetailsView(
+                    workout: workout,
+                    onWorkoutCompleted: onWorkoutCompleted
+                )
 
             } label: {
 

@@ -2,9 +2,15 @@ import SwiftUI
 
 struct HomeView: View {
 
-    @State private var viewModel = HomeViewModel()
+    @State private var viewModel: HomeViewModel
+    @Environment(NavigationRouter.self) private var router
+
+    init(viewModel: HomeViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
+        let _ = WorkoutLifecycleLog.event("HomeView.body")
 
         ScrollView {
 
@@ -17,10 +23,28 @@ struct HomeView: View {
                     ContinueWorkoutCard(
                         session: activeSession,
                         onContinue: {
+                            WorkoutLifecycleLog.event(
+                                "HomeView.continueTapped",
+                                WorkoutLifecycleLog.session(activeSession, label: "home.cardSession")
+                            )
                             viewModel.continueActiveSession()
                         },
                         onStartFreshConfirmed: {
-                            viewModel.abandonActiveSession()
+                            WorkoutLifecycleLog.event(
+                                "HomeView.startFreshConfirmed",
+                                WorkoutLifecycleLog.session(activeSession, label: "home.cardSession")
+                            )
+                            let abandoned = viewModel.abandonActiveSession()
+
+                            if abandoned {
+                                WorkoutLifecycleLog.event(
+                                    "HomeView.startFreshOpeningWorkoutLibrary",
+                                    ["navigationRouter.pathCount=\(router.path.count)"]
+                                )
+                                router.push(.workout)
+                            }
+
+                            return abandoned
                         }
                     )
                 } else {
@@ -38,13 +62,25 @@ struct HomeView: View {
         .background(AppColor.background)
         .navigationTitle("Home")
         .onAppear {
+            WorkoutLifecycleLog.event("HomeView.onAppear.beforeLoad")
             viewModel.loadActiveSession()
-        }
-        .navigationDestination(isPresented: $viewModel.shouldOpenWorkoutLibrary) {
-            WorkoutLibraryView()
+            WorkoutLifecycleLog.event("HomeView.onAppear.afterLoad")
         }
         .navigationDestination(item: $viewModel.sessionToContinue) { session in
-            WorkoutSessionView(session: session)
+            let _ = WorkoutLifecycleLog.event(
+                "HomeView.navigationDestination.continueSession",
+                WorkoutLifecycleLog.session(session)
+            )
+            WorkoutSessionView(
+                session: session,
+                onWorkoutCompleted: { completedSessionID in
+                    WorkoutLifecycleLog.event(
+                        "HomeView.continueSessionCompleted",
+                        ["completedSessionID=\(completedSessionID.uuidString)"]
+                    )
+                    viewModel.handleWorkoutCompleted(sessionID: completedSessionID)
+                }
+            )
                 .id(session.id)
         }
     }
@@ -52,6 +88,7 @@ struct HomeView: View {
 
 #Preview {
     NavigationStack {
-        HomeView()
+        HomeView(viewModel: HomeViewModel())
+            .environment(NavigationRouter())
     }
 }
