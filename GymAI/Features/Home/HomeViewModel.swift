@@ -91,10 +91,14 @@ final class HomeViewModel {
             return
         }
 
-        activeSession = nil
-        sessionToContinue = nil
+        if activeSession?.id == sessionID {
+            activeSession = nil
+        }
+        if sessionToContinue?.id == sessionID {
+            sessionToContinue = nil
+        }
         WorkoutLifecycleLog.event(
-            "HomeViewModel.handleWorkoutCompleted.afterClear",
+            "HomeViewModel.handleWorkoutCompleted.afterPresentationSync",
             diagnosticFields + displayFields + ["completedSessionID=\(sessionID.uuidString)"]
         )
 
@@ -106,6 +110,16 @@ final class HomeViewModel {
             + ["completedSessionID=\(sessionID.uuidString)"]
             + WorkoutLifecycleLog.session(activeSession, label: "home.activeSession")
         )
+    }
+
+    func dismissWorkoutCompletionSummary() {
+        WorkoutLifecycleLog.event(
+            "HomeViewModel.dismissWorkoutCompletionSummary",
+            diagnosticFields
+            + displayFields
+            + WorkoutLifecycleLog.session(sessionToContinue, label: "home.sessionToContinue")
+        )
+        sessionToContinue = nil
     }
 
     @discardableResult

@@ -11,6 +11,8 @@ final class ActiveWorkoutViewModel {
     
     var activeWorkout: ActiveWorkout
     private(set) var completedSessionID: UUID?
+    private(set) var completionSummary: WorkoutCompletionSummary?
+    private(set) var pendingRestTimerContext: RestTimerContext?
 
     init(workout: Workout) {
         self.activeWorkout = ActiveWorkout(workout: workout)
@@ -220,6 +222,8 @@ final class ActiveWorkoutViewModel {
     }
     
     func completeSet() {
+        pendingRestTimerContext = nil
+
         WorkoutLifecycleLog.event(
             "ActiveWorkoutViewModel.completeSet.begin",
             diagnosticFields + WorkoutLifecycleLog.activeWorkout(activeWorkout)
@@ -242,6 +246,11 @@ final class ActiveWorkoutViewModel {
                 diagnosticFields + WorkoutLifecycleLog.activeWorkout(activeWorkout)
             )
             syncSession()
+            prepareRestTimerContext(
+                afterCompleting: workoutExercise,
+                upcomingExercise: activeWorkout.currentWorkoutExercise,
+                upcomingSet: activeWorkout.currentSet
+            )
 
         } else {
 
@@ -260,6 +269,11 @@ final class ActiveWorkoutViewModel {
                     diagnosticFields + WorkoutLifecycleLog.activeWorkout(activeWorkout)
                 )
                 syncSession()
+                prepareRestTimerContext(
+                    afterCompleting: workoutExercise,
+                    upcomingExercise: activeWorkout.currentWorkoutExercise,
+                    upcomingSet: activeWorkout.currentSet
+                )
 
             } else {
                 activeWorkout.isCompleted = true
@@ -299,6 +313,19 @@ final class ActiveWorkoutViewModel {
                     )
                     repository.save(record)
                     completedSessionID = session.id
+                    completionSummary = WorkoutCompletionSummary(
+                        sessionID: session.id,
+                        activeWorkout: activeWorkout,
+                        duration: session.elapsedTime,
+                        includesCurrentSetCompletion: true
+                    )
+                    WorkoutLifecycleLog.event(
+                        "ActiveWorkoutViewModel.completionSummaryCreated",
+                        diagnosticFields
+                        + ["completedSessionID=\(session.id.uuidString)"]
+                        + ["completionSummary.sets=\(completionSummary?.completedSets ?? 0)"]
+                        + ["completionSummary.reps=\(completionSummary?.completedReps ?? 0)"]
+                    )
                     WorkoutLifecycleLog.event(
                         "ActiveWorkoutViewModel.completeSet.finalSet.afterSaveHistory",
                         diagnosticFields
@@ -365,6 +392,19 @@ final class ActiveWorkoutViewModel {
 
         activeWorkout.isCompleted = true
         completedSessionID = session.id
+        completionSummary = WorkoutCompletionSummary(
+            sessionID: session.id,
+            activeWorkout: activeWorkout,
+            duration: session.elapsedTime,
+            includesCurrentSetCompletion: false
+        )
+        WorkoutLifecycleLog.event(
+            "ActiveWorkoutViewModel.completionSummaryCreated",
+            diagnosticFields
+            + ["completedSessionID=\(session.id.uuidString)"]
+            + ["completionSummary.sets=\(completionSummary?.completedSets ?? 0)"]
+            + ["completionSummary.reps=\(completionSummary?.completedReps ?? 0)"]
+        )
         WorkoutLifecycleLog.event(
             "ActiveWorkoutViewModel.finishWorkout.afterSaveHistory",
             diagnosticFields
@@ -412,6 +452,25 @@ final class ActiveWorkoutViewModel {
             "ActiveWorkoutViewModel.syncSession.afterUpdateSession",
             diagnosticFields
             + WorkoutLifecycleLog.session(repository.fetchActiveSession(), label: "fetchedActiveSession")
+        )
+    }
+
+    private func prepareRestTimerContext(
+        afterCompleting workoutExercise: WorkoutExercise,
+        upcomingExercise: WorkoutExercise?,
+        upcomingSet: Int
+    ) {
+        guard
+            workoutExercise.restSeconds > 0,
+            let upcomingExercise
+        else {
+            return
+        }
+
+        pendingRestTimerContext = RestTimerContext(
+            durationSeconds: workoutExercise.restSeconds,
+            exerciseName: upcomingExercise.exercise.name,
+            upcomingSet: upcomingSet
         )
     }
 

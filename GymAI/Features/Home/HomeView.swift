@@ -4,9 +4,17 @@ struct HomeView: View {
 
     @State private var viewModel: HomeViewModel
     @Environment(NavigationRouter.self) private var router
+    private let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    private let onRestTimerRequested: (RestTimerContext) -> Void
 
-    init(viewModel: HomeViewModel) {
+    init(
+        viewModel: HomeViewModel,
+        onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
+    ) {
         _viewModel = State(initialValue: viewModel)
+        self.onWorkoutCompleted = onWorkoutCompleted
+        self.onRestTimerRequested = onRestTimerRequested
     }
 
     var body: some View {
@@ -73,13 +81,15 @@ struct HomeView: View {
             )
             WorkoutSessionView(
                 session: session,
-                onWorkoutCompleted: { completedSessionID in
+                onWorkoutCompleted: { summary in
                     WorkoutLifecycleLog.event(
                         "HomeView.continueSessionCompleted",
-                        ["completedSessionID=\(completedSessionID.uuidString)"]
+                        ["completedSessionID=\(summary.id.uuidString)"]
                     )
-                    viewModel.handleWorkoutCompleted(sessionID: completedSessionID)
-                }
+                    viewModel.handleWorkoutCompleted(sessionID: summary.id)
+                    onWorkoutCompleted(summary)
+                },
+                onRestTimerRequested: onRestTimerRequested
             )
                 .id(session.id)
         }

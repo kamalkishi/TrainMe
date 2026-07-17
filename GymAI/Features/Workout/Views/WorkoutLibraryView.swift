@@ -3,10 +3,15 @@ import SwiftUI
 struct WorkoutLibraryView: View {
 
     private let workoutService = WorkoutService()
-    private let onWorkoutCompleted: (UUID) -> Void
+    private let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    private let onRestTimerRequested: (RestTimerContext) -> Void
 
-    init(onWorkoutCompleted: @escaping (UUID) -> Void = { _ in }) {
+    init(
+        onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
+    ) {
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onRestTimerRequested = onRestTimerRequested
     }
 
     var body: some View {
@@ -17,7 +22,8 @@ struct WorkoutLibraryView: View {
 
                 WorkoutDetailsView(
                     workout: workout,
-                    onWorkoutCompleted: onWorkoutCompleted
+                    onWorkoutCompleted: onWorkoutCompleted,
+                    onRestTimerRequested: onRestTimerRequested
                 )
 
             } label: {

@@ -406,3 +406,13 @@ final class WorkoutPersistence {
         )
     }
 }
+
+extension WorkoutPersistence.PersistenceError: LocalizedError {
+
+    var errorDescription: String? {
+        switch self {
+        case .sessionNotFound(let id):
+            "Workout session not found: \(id)"
+        }
+    }
+}

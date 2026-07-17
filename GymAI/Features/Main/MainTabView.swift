@@ -5,6 +5,9 @@ struct MainTabView: View {
     @State private var router = NavigationRouter()
     @State private var selectedTab = MainTab.home
     @State private var homeViewModel = HomeViewModel()
+    @State private var completionSummary: WorkoutCompletionSummary?
+    @State private var restTimerContext: RestTimerContext?
+    @State private var presentedRestTimerContext: RestTimerContext?
 
     private var navigationCoordinator: MainTabNavigationCoordinator {
         MainTabNavigationCoordinator(homeViewModel: homeViewModel)
@@ -16,7 +19,11 @@ struct MainTabView: View {
 
             NavigationStack(path: $router.path) {
 
-                HomeView(viewModel: homeViewModel)
+                HomeView(
+                    viewModel: homeViewModel,
+                    onWorkoutCompleted: presentCompletionSummary,
+                    onRestTimerRequested: presentRestTimer
+                )
                     .environment(router)
 
                     .navigationDestination(for: AppDestination.self) { destination in
@@ -24,17 +31,26 @@ struct MainTabView: View {
                         switch destination {
 
                         case .home:
-                            HomeView(viewModel: homeViewModel)
+                            HomeView(
+                                viewModel: homeViewModel,
+                                onWorkoutCompleted: presentCompletionSummary,
+                                onRestTimerRequested: presentRestTimer
+                            )
                                 .environment(router)
 
                         case .workout:
                             WorkoutLibraryView(
-                                onWorkoutCompleted: { completedSessionID in
+                                onWorkoutCompleted: { summary in
                                     navigationCoordinator.handleWorkoutCompleted(
-                                        sessionID: completedSessionID
+                                        sessionID: summary.id
                                     )
-                                }
+                                    presentCompletionSummary(summary)
+                                },
+                                onRestTimerRequested: presentRestTimer
                             )
+
+                        case .history:
+                            WorkoutHistoryView()
 
                         case .profile:
                             Text("Profile")
@@ -85,6 +101,103 @@ struct MainTabView: View {
                 reason: "navigationPathChanged"
             )
         }
+        .sheet(item: $completionSummary) { summary in
+            WorkoutCompletionSummaryView(
+                summary: summary,
+                onBackToHome: {
+                    WorkoutLifecycleLog.event(
+                        "MainTabView.summaryDismissed.backToHome",
+                        ["summary.id=\(summary.id.uuidString)"]
+                    )
+                    completionSummary = nil
+                    homeViewModel.dismissWorkoutCompletionSummary()
+                    router.popToRoot()
+                },
+                onViewHistory: {
+                    WorkoutLifecycleLog.event(
+                        "MainTabView.summaryDismissed.viewHistory",
+                        ["summary.id=\(summary.id.uuidString)"]
+                    )
+                    completionSummary = nil
+                    homeViewModel.dismissWorkoutCompletionSummary()
+                    router.path = [.history]
+                }
+            )
+            .onAppear {
+                WorkoutLifecycleLog.event(
+                    "MainTabView.summaryPresented",
+                    ["summary.id=\(summary.id.uuidString)"]
+                )
+            }
+        }
+        .sheet(
+            item: $restTimerContext,
+            onDismiss: {
+                if let context = presentedRestTimerContext {
+                    dismissRestTimer(context)
+                }
+            }
+        ) { context in
+            RestTimerView(
+                context: context,
+                onCompleted: {
+                    WorkoutLifecycleLog.event(
+                        "RestTimer.completed",
+                        restTimerLogFields(context)
+                    )
+                    dismissRestTimer(context)
+                },
+                onSkipped: {
+                    WorkoutLifecycleLog.event(
+                        "RestTimer.skipped",
+                        restTimerLogFields(context)
+                    )
+                    dismissRestTimer(context)
+                }
+            )
+            .onAppear {
+                WorkoutLifecycleLog.event(
+                    "RestTimer.presented",
+                    restTimerLogFields(context)
+                )
+            }
+        }
+    }
+
+    private func presentCompletionSummary(_ summary: WorkoutCompletionSummary) {
+        WorkoutLifecycleLog.event(
+            "MainTabView.summaryPresentationRequested",
+            ["summary.id=\(summary.id.uuidString)"]
+        )
+        restTimerContext = nil
+        completionSummary = summary
+    }
+
+    private func presentRestTimer(_ context: RestTimerContext) {
+        guard completionSummary == nil else {
+            return
+        }
+
+        presentedRestTimerContext = context
+        restTimerContext = context
+    }
+
+    private func dismissRestTimer(_ context: RestTimerContext) {
+        WorkoutLifecycleLog.event(
+            "RestTimer.dismissed",
+            restTimerLogFields(context)
+        )
+        presentedRestTimerContext = nil
+        restTimerContext = nil
+    }
+
+    private func restTimerLogFields(_ context: RestTimerContext) -> [String] {
+        [
+            "restTimer.id=\(context.id.uuidString)",
+            "exercise.name=\(context.exerciseName)",
+            "durationSeconds=\(context.durationSeconds)",
+            "upcomingSet=\(context.upcomingSet)"
+        ]
     }
 }
 

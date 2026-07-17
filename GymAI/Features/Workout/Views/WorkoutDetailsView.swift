@@ -3,16 +3,19 @@ import SwiftUI
 struct WorkoutDetailsView: View {
 
     let workout: Workout
-    let onWorkoutCompleted: (UUID) -> Void
+    let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    let onRestTimerRequested: (RestTimerContext) -> Void
 
     @State private var viewModel = WorkoutDetailsViewModel()
 
     init(
         workout: Workout,
-        onWorkoutCompleted: @escaping (UUID) -> Void = { _ in }
+        onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         self.workout = workout
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onRestTimerRequested = onRestTimerRequested
     }
 
     var body: some View {
@@ -80,7 +83,8 @@ struct WorkoutDetailsView: View {
             )
             WorkoutSessionView(
                 session: session,
-                onWorkoutCompleted: onWorkoutCompleted
+                onWorkoutCompleted: onWorkoutCompleted,
+                onRestTimerRequested: onRestTimerRequested
             )
         }
         .navigationDestination(item: $viewModel.freshWorkoutDestination) { destination in
@@ -91,7 +95,8 @@ struct WorkoutDetailsView: View {
             )
             WorkoutSessionView(
                 workout: destination.workout,
-                onWorkoutCompleted: onWorkoutCompleted
+                onWorkoutCompleted: onWorkoutCompleted,
+                onRestTimerRequested: onRestTimerRequested
             )
                 .id(destination.id)
         }

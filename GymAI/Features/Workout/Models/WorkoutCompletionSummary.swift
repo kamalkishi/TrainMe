@@ -112,7 +112,7 @@ struct PlannedExerciseTarget: Identifiable, Hashable {
     let targetReps: Int
 
     init(
-        id: UUID,
+        id: UUID = UUID(),
         exerciseName: String,
         targetSets: Int,
         targetReps: Int

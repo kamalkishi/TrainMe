@@ -246,6 +246,16 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
         )
 
         if let activeSession {
+            guard activeSession.completed == false else {
+                WorkoutLifecycleLog.event(
+                    "Repository.fetchActiveSession.clearedCompletedMemory",
+                    WorkoutLifecycleLog.session(activeSession)
+                )
+                self.activeSession = nil
+                self.activeSessionID = nil
+                return fetchActiveSession()
+            }
+
             WorkoutLifecycleLog.event(
                 "Repository.fetchActiveSession.memoryHit",
                 WorkoutLifecycleLog.session(activeSession)
@@ -328,6 +338,20 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
         } catch {
             lastError = error
             logger.error("Failed to update workout session: \(error.localizedDescription)")
+
+            if case WorkoutPersistence.PersistenceError.sessionNotFound = error {
+                WorkoutLifecycleLog.event(
+                    "Repository.updateSession.clearingMissingSessionMemory",
+                    WorkoutLifecycleLog.session(session)
+                    + WorkoutLifecycleLog.repositoryState(
+                        activeSession: activeSession,
+                        activeSessionID: activeSessionID
+                    )
+                )
+                activeSession = nil
+                activeSessionID = nil
+            }
+
             WorkoutLifecycleLog.event(
                 "Repository.updateSession.failed",
                 ["error=\"\(error.localizedDescription)\""]

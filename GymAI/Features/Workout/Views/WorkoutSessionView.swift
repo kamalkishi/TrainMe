@@ -3,15 +3,18 @@ import SwiftUI
 struct WorkoutSessionView: View {
 
     private let diagnosticID = UUID()
-    private let onWorkoutCompleted: (UUID) -> Void
+    private let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    private let onRestTimerRequested: (RestTimerContext) -> Void
 
     @State private var viewModel: ActiveWorkoutViewModel
 
     init(
         workout: Workout,
-        onWorkoutCompleted: @escaping (UUID) -> Void = { _ in }
+        onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onRestTimerRequested = onRestTimerRequested
         _viewModel = State(
             initialValue: ActiveWorkoutViewModel(workout: workout)
         )
@@ -26,9 +29,11 @@ struct WorkoutSessionView: View {
 
     init(
         session: WorkoutSession,
-        onWorkoutCompleted: @escaping (UUID) -> Void = { _ in }
+        onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onRestTimerRequested = onRestTimerRequested
         _viewModel = State(
             initialValue: ActiveWorkoutViewModel(session: session)
         )
@@ -54,7 +59,7 @@ struct WorkoutSessionView: View {
 
             Text(viewModel.workout.name)
                 .font(AppFont.largeTitle)
-            
+
             Text(
                 "workout.exercise_progress \(viewModel.currentExerciseNumber) \(viewModel.totalExercises)"
             )
@@ -92,7 +97,9 @@ struct WorkoutSessionView: View {
                     ] + WorkoutLifecycleLog.activeWorkout(viewModel.activeWorkout)
                 )
                 viewModel.completeSet()
-                notifyCompletionIfNeeded()
+                if !notifyCompletionIfNeeded() {
+                    notifyRestTimerIfNeeded()
+                }
             }
             .disabled(viewModel.isWorkoutCompleted)
             
@@ -140,7 +147,7 @@ struct WorkoutSessionView: View {
                     ] + WorkoutLifecycleLog.activeWorkout(viewModel.activeWorkout)
                 )
                 viewModel.finishWorkout()
-                notifyCompletionIfNeeded()
+                _ = notifyCompletionIfNeeded()
             }
         }
         .padding(AppStyle.screenPadding)
@@ -166,9 +173,12 @@ struct WorkoutSessionView: View {
         }
     }
 
-    private func notifyCompletionIfNeeded() {
-        guard let completedSessionID = viewModel.completedSessionID else {
-            return
+    private func notifyCompletionIfNeeded() -> Bool {
+        guard
+            let completedSessionID = viewModel.completedSessionID,
+            let summary = viewModel.completionSummary
+        else {
+            return false
         }
 
         WorkoutLifecycleLog.event(
@@ -179,7 +189,34 @@ struct WorkoutSessionView: View {
                 "completedSessionID=\(completedSessionID.uuidString)"
             ] + WorkoutLifecycleLog.activeWorkout(viewModel.activeWorkout)
         )
-        onWorkoutCompleted(completedSessionID)
+        WorkoutLifecycleLog.event(
+            "WorkoutSessionView.summaryReady",
+            [
+                "workoutSessionView.id=\(diagnosticID)",
+                "summary.id=\(summary.id.uuidString)"
+            ]
+        )
+        onWorkoutCompleted(summary)
+        return true
+    }
+
+    private func notifyRestTimerIfNeeded() {
+        guard let context = viewModel.pendingRestTimerContext else {
+            return
+        }
+
+        WorkoutLifecycleLog.event(
+            "RestTimer.requested",
+            [
+                "workoutSessionView.id=\(diagnosticID)",
+                "activeWorkoutViewModel.id=\(viewModel.diagnosticIdentifier)",
+                "restTimer.id=\(context.id.uuidString)",
+                "exercise.name=\(context.exerciseName)",
+                "durationSeconds=\(context.durationSeconds)",
+                "upcomingSet=\(context.upcomingSet)"
+            ]
+        )
+        onRestTimerRequested(context)
     }
 }
 
