@@ -9,7 +9,7 @@ struct WorkoutRepositoryTests {
 
     @Test
     func repositoryPersistsProgressWithoutSharedSingletonState() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let repository = WorkoutRepository()
         repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
         let workout = WorkoutMapperTests.makeWorkout()
@@ -36,7 +36,7 @@ struct WorkoutRepositoryTests {
 
     @Test
     func saveCompletesPersistedSessionAndClearsMemoryAfterSuccess() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let repository = WorkoutRepository()
         repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
         repository.startSession(for: WorkoutMapperTests.makeWorkout())
@@ -74,8 +74,8 @@ struct WorkoutRepositoryTests {
     }
 
     @Test
-    func clearActiveSessionDeletesOnlyCurrentUnfinishedSession() throws {
-        let container = try makeContainer()
+    func clearActiveSessionDeletesAllUnfinishedSessions() throws {
+        let container = try Self.makeContainer()
         let repository = WorkoutRepository()
         repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
         let currentWorkout = WorkoutMapperTests.makeWorkout(name: "Current")
@@ -92,17 +92,156 @@ struct WorkoutRepositoryTests {
 
         repository.clearActiveSession()
 
-        let restored = try #require(try persistence.loadActiveSession())
         #expect(repository.lastError == nil)
-        #expect(repository.fetchActiveSession()?.id == restored.id)
-        #expect(restored.id == otherSession.id)
-        #expect(restored.id != currentSession.id)
+        #expect(repository.fetchActiveSession() == nil)
+        #expect(try persistence.loadActiveSession() == nil)
+        #expect(try persistence.fetchWorkoutHistory().isEmpty)
+        #expect(currentSession.id != otherSession.id)
+    }
+
+    @Test
+    func startFreshAbandonRemovesMultipleUnfinishedSessionsAndPreservesHistory() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        try Self.completeWorkout(named: "Completed", completedAt: Date(timeIntervalSince1970: 3_000), persistence: persistence)
+        _ = try persistence.startWorkout(
+            WorkoutSession(
+                workout: WorkoutMapperTests.makeWorkout(name: "Older"),
+                startedAt: Date(timeIntervalSince1970: 1_000)
+            )
+        )
+        _ = try persistence.startWorkout(
+            WorkoutSession(
+                workout: WorkoutMapperTests.makeWorkout(name: "Middle"),
+                startedAt: Date(timeIntervalSince1970: 2_000)
+            )
+        )
+        repository.startSession(for: WorkoutMapperTests.makeWorkout(name: "Newest"))
+        let activeBeforeAbandon = try #require(repository.fetchActiveSession())
+
+        let abandoned = repository.abandonActiveSession()
+
+        #expect(abandoned == true)
+        #expect(activeBeforeAbandon.workout.name == "Newest")
+        #expect(repository.activeSession == nil)
+        #expect(repository.fetchActiveSession() == nil)
+        #expect(try persistence.loadActiveSession() == nil)
+        #expect(try persistence.fetchWorkoutHistory().count == 1)
+    }
+
+    @Test
+    func abandonActiveSessionDeletesUnfinishedSessionWithoutHistoryCreation() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        repository.startSession(for: WorkoutMapperTests.makeWorkout())
+        _ = try #require(repository.fetchActiveSession())
+
+        let abandoned = repository.abandonActiveSession()
+
+        #expect(abandoned == true)
+        #expect(repository.lastError == nil)
+        #expect(repository.activeSession == nil)
+        #expect(try persistence.loadActiveSession() == nil)
+        #expect(try persistence.fetchWorkoutHistory().isEmpty)
+        #expect(repository.fetchActiveSession() == nil)
+    }
+
+    @Test
+    func abandonThenStartFreshCreatesNewSessionID() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        repository.startSession(for: WorkoutMapperTests.makeWorkout(name: "Original"))
+        let originalSession = try #require(repository.fetchActiveSession())
+
+        let abandoned = repository.abandonActiveSession()
+        repository.startSession(for: WorkoutMapperTests.makeWorkout(name: "Fresh"))
+
+        let freshSession = try #require(repository.fetchActiveSession())
+        let persistedSession = try #require(try persistence.loadActiveSession())
+
+        #expect(abandoned == true)
+        #expect(repository.lastError == nil)
+        #expect(freshSession.id != originalSession.id)
+        #expect(freshSession.currentExerciseIndex == 0)
+        #expect(freshSession.currentSet == 1)
+        #expect(freshSession.completedReps == 0)
+        #expect(freshSession.elapsedTime == 0)
+        #expect(persistedSession.id == freshSession.id)
+        #expect(persistedSession.workout.name == "Fresh")
+        #expect(persistedSession.currentExerciseIndex == 0)
+        #expect(persistedSession.currentSet == 1)
+        #expect(persistedSession.completedReps == 0)
+        #expect(persistedSession.elapsedTime == 0)
+        #expect(try persistence.fetchWorkoutHistory().isEmpty)
+    }
+
+    @Test
+    func abandonActiveSessionPreservesCompletedHistory() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        repository.startSession(for: WorkoutMapperTests.makeWorkout(name: "Completed"))
+        var completedSession = try #require(repository.fetchActiveSession())
+        completedSession.completed = true
+        completedSession.endedAt = Date(timeIntervalSince1970: 3_600)
+        completedSession.elapsedTime = 600
+        completedSession.completedExercises = 2
+        repository.updateSession(completedSession)
+        repository.save(
+            WorkoutSessionRecord(
+                id: completedSession.id,
+                workoutName: completedSession.workout.name,
+                startedAt: completedSession.startedAt,
+                completedAt: completedSession.endedAt ?? .now,
+                duration: completedSession.elapsedTime,
+                exercisesCompleted: completedSession.completedExercises
+            )
+        )
+        let historyBeforeAbandon = try persistence.fetchWorkoutHistory()
+
+        repository.startSession(for: WorkoutMapperTests.makeWorkout(name: "Unfinished"))
+        let abandoned = repository.abandonActiveSession()
+        let historyAfterAbandon = try persistence.fetchWorkoutHistory()
+
+        #expect(abandoned == true)
+        #expect(historyBeforeAbandon.count == 1)
+        #expect(historyAfterAbandon == historyBeforeAbandon)
+        #expect(try persistence.loadActiveSession() == nil)
+    }
+
+    @Test
+    func abandonFailurePreventsNewSessionCreationWhenCallerRequiresSuccess() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        let originalSession = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: "Original"))
+        repository.activeSession = originalSession
+
+        let abandoned = repository.abandonActiveSession()
+
+        if abandoned {
+            repository.startSession(for: WorkoutMapperTests.makeWorkout(name: "Fresh"))
+        }
+
+        #expect(abandoned == false)
+        #expect(repository.activeSession?.id == originalSession.id)
+        #expect(repository.lastError != nil)
+        #expect(try persistence.loadActiveSession() == nil)
+        #expect(try persistence.fetchWorkoutHistory().isEmpty)
     }
 
     @Test
     func repeatedConfigurationDoesNotReplaceExistingPersistenceOrResetState() throws {
-        let firstContainer = try makeContainer()
-        let secondContainer = try makeContainer()
+        let firstContainer = try Self.makeContainer()
+        let secondContainer = try Self.makeContainer()
         let repository = WorkoutRepository()
         repository.configure(with: WorkoutPersistence(modelContext: ModelContext(firstContainer)))
         repository.startSession(for: WorkoutMapperTests.makeWorkout())
@@ -123,6 +262,90 @@ struct WorkoutRepositoryTests {
         #expect(secondRestored == nil)
     }
 
+    @Test
+    func saveWithPersistenceAndMissingActiveSessionIDRecordsErrorWithoutHistoryOrClearingSession() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
+        let session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
+        repository.activeSession = session
+
+        repository.save(
+            WorkoutSessionRecord(
+                id: session.id,
+                workoutName: session.workout.name,
+                startedAt: session.startedAt,
+                completedAt: .now,
+                duration: 1,
+                exercisesCompleted: 1
+            )
+        )
+
+        #expect(repository.activeSession == session)
+        #expect(repository.history.isEmpty)
+        #expect(repository.lastError != nil)
+    }
+
+    @Test
+    func completionFailureRetainsActiveSessionForRetry() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        repository.startSession(for: WorkoutMapperTests.makeWorkout())
+        var session = try #require(repository.fetchActiveSession())
+        try persistence.deleteSession(sessionID: session.id)
+
+        session.completed = true
+        session.endedAt = .now
+        repository.save(
+            WorkoutSessionRecord(
+                id: session.id,
+                workoutName: session.workout.name,
+                startedAt: session.startedAt,
+                completedAt: session.endedAt ?? .now,
+                duration: 1,
+                exercisesCompleted: 1
+            )
+        )
+
+        #expect(repository.activeSession?.id == session.id)
+        #expect(repository.history.isEmpty)
+        #expect(repository.lastError != nil)
+    }
+
+    @Test
+    func repeatedRepositoryCompletionDoesNotCreateDuplicateHistory() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        repository.startSession(for: WorkoutMapperTests.makeWorkout())
+        var session = try #require(repository.fetchActiveSession())
+        session.completed = true
+        session.endedAt = Date(timeIntervalSince1970: 4_000)
+        session.completedExercises = 2
+        session.completedReps = 56
+        session.elapsedTime = 600
+        repository.updateSession(session)
+        let record = WorkoutSessionRecord(
+            id: session.id,
+            workoutName: session.workout.name,
+            startedAt: session.startedAt,
+            completedAt: session.endedAt ?? .now,
+            duration: session.elapsedTime,
+            exercisesCompleted: session.completedExercises
+        )
+
+        repository.save(record)
+        repository.save(record)
+
+        let history = try persistence.fetchWorkoutHistory()
+        #expect(history.count == 1)
+        #expect(history.first?.id == session.id)
+        #expect(repository.fetchActiveSession() == nil)
+    }
+
     private static func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             WorkoutEntity.self,
@@ -131,5 +354,19 @@ struct WorkoutRepositoryTests {
         ])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    private static func completeWorkout(
+        named name: String,
+        completedAt: Date,
+        persistence: WorkoutPersistence
+    ) throws {
+        var session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: name))
+        _ = try persistence.startWorkout(session)
+        session.completed = true
+        session.endedAt = completedAt
+        session.elapsedTime = completedAt.timeIntervalSince(session.startedAt)
+        try persistence.saveSession(session, sessionID: session.id)
+        _ = try persistence.completeSession(sessionID: session.id)
     }
 }

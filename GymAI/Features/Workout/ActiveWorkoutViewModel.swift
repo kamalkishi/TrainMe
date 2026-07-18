@@ -304,7 +304,8 @@ final class ActiveWorkoutViewModel {
                         startedAt: session.startedAt,
                         completedAt: session.endedAt ?? .now,
                         duration: session.elapsedTime,
-                        exercisesCompleted: session.completedExercises
+                        exercisesCompleted: session.completedExercises,
+                        exerciseResults: WorkoutSessionRecord.exerciseSummary(from: activeWorkout.exerciseResults)
                     )
                     repository.save(record)
                     completedSessionID = session.id
@@ -388,7 +389,8 @@ final class ActiveWorkoutViewModel {
             startedAt: session.startedAt,
             completedAt: session.endedAt ?? .now,
             duration: session.elapsedTime,
-            exercisesCompleted: session.completedExercises
+            exercisesCompleted: session.completedExercises,
+            exerciseResults: WorkoutSessionRecord.exerciseSummary(from: activeWorkout.exerciseResults)
         )
 
         WorkoutLifecycleLog.event(

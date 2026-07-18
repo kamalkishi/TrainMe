@@ -3,6 +3,7 @@ import Testing
 @testable import GymAI
 
 @Suite("Workout mapper")
+@MainActor
 struct WorkoutMapperTests {
 
     @Test
@@ -39,6 +40,27 @@ struct WorkoutMapperTests {
         #expect(workout.exercises.isEmpty)
         #expect(workout.estimatedDuration == 1_800)
         #expect(workout.description == "Legacy stored workout")
+    }
+
+    @Test
+    func missingSnapshotWithNilMetadataUsesExplicitFallbackValues() throws {
+        let entity = WorkoutEntity(
+            id: UUID(),
+            name: "Legacy Minimal",
+            type: WorkoutType.mobility.rawValue,
+            estimatedDuration: nil,
+            workoutDescription: nil,
+            workoutSnapshotData: nil
+        )
+
+        let workout = try WorkoutMapper.workout(from: entity)
+
+        #expect(workout.id == entity.id)
+        #expect(workout.name == "Legacy Minimal")
+        #expect(workout.type == WorkoutType.mobility)
+        #expect(workout.exercises.isEmpty)
+        #expect(workout.estimatedDuration == 0)
+        #expect(workout.description == "")
     }
 
     @Test

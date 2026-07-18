@@ -15,6 +15,7 @@ final class WorkoutHistoryEntity {
     var duration: TimeInterval
 
     var exercisesCompleted: Int
+    var exerciseSummaryData: Data?
 
     init(
         id: UUID = UUID(),
@@ -22,7 +23,8 @@ final class WorkoutHistoryEntity {
         startedAt: Date,
         completedAt: Date,
         duration: TimeInterval,
-        exercisesCompleted: Int
+        exercisesCompleted: Int,
+        exerciseSummaryData: Data? = nil
     ) {
         self.id = id
         self.workoutName = workoutName
@@ -30,5 +32,6 @@ final class WorkoutHistoryEntity {
         self.completedAt = completedAt
         self.duration = duration
         self.exercisesCompleted = exercisesCompleted
+        self.exerciseSummaryData = exerciseSummaryData
     }
 }

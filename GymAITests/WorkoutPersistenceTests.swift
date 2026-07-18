@@ -9,7 +9,7 @@ struct WorkoutPersistenceTests {
 
     @Test
     func startAndPersistSession() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
         let workout = WorkoutMapperTests.makeWorkout()
         let session = WorkoutSession(workout: workout)
@@ -23,7 +23,7 @@ struct WorkoutPersistenceTests {
 
     @Test
     func progressUpdatePersistsResumableState() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
         var session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
         let entity = try persistence.startWorkout(session)
@@ -46,7 +46,7 @@ struct WorkoutPersistenceTests {
 
     @Test
     func restorationWithFreshModelContextUsesPersistedSnapshot() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let workout = WorkoutMapperTests.makeWorkout()
         let session = WorkoutSession(workout: workout)
 
@@ -62,7 +62,7 @@ struct WorkoutPersistenceTests {
 
     @Test
     func newestIncompleteSessionIsRestoredDeterministically() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
         let older = WorkoutSession(
             workout: WorkoutMapperTests.makeWorkout(name: "Older"),
@@ -83,7 +83,7 @@ struct WorkoutPersistenceTests {
 
     @Test
     func completionCreatesStableIDHistoryAndPreventsDuplicates() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
         var session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
         let entity = try persistence.startWorkout(session)
@@ -111,8 +111,112 @@ struct WorkoutPersistenceTests {
     }
 
     @Test
+    func completionPersistsExerciseSummarySnapshotBeforeDeletingActiveSession() throws {
+        let container = try Self.makeContainer()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        var session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
+        session.exerciseResults = Self.partialExerciseResults(for: session.workout)
+        let entity = try persistence.startWorkout(session)
+
+        session.completed = true
+        session.endedAt = Date(timeIntervalSince1970: 1_000)
+        session.completedExercises = 1
+        session.completedReps = 46
+        session.elapsedTime = 600
+        try persistence.saveSession(session, sessionID: entity.id)
+
+        let completedRecord = try persistence.completeSession(sessionID: entity.id)
+        let fetchedRecord = try #require(try persistence.fetchWorkoutHistory().first)
+
+        #expect(completedRecord.exerciseResults == fetchedRecord.exerciseResults)
+        #expect(fetchedRecord.exerciseResults.count == 2)
+        #expect(fetchedRecord.exerciseResults[0].exerciseName == "Goblet Squat")
+        #expect(fetchedRecord.exerciseResults[0].plannedSets == 3)
+        #expect(fetchedRecord.exerciseResults[0].plannedReps == 12)
+        #expect(fetchedRecord.exerciseResults[0].plannedRestSeconds == 60)
+        #expect(fetchedRecord.exerciseResults[0].completedSets == 3)
+        #expect(fetchedRecord.exerciseResults[0].completedReps == 36)
+        #expect(fetchedRecord.exerciseResults[1].exerciseName == "Push-up")
+        #expect(fetchedRecord.exerciseResults[1].completedSets == 1)
+        #expect(fetchedRecord.exerciseResults[1].completedReps == 10)
+        #expect(try persistence.loadActiveSession() == nil)
+    }
+
+    @Test
+    func completionPersistsUnstartedExercisesFromRuntimeSnapshotWithoutMarkingComplete() throws {
+        let container = try Self.makeContainer()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        var session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
+        session.exerciseResults = ActiveWorkout(workout: session.workout).exerciseResults
+        session.exerciseResults[0].completedSets = 1
+        session.exerciseResults[0].completedReps = 12
+        let entity = try persistence.startWorkout(session)
+
+        session.completed = true
+        session.endedAt = Date(timeIntervalSince1970: 1_000)
+        session.completedExercises = 0
+        session.completedReps = 12
+        session.elapsedTime = 600
+        try persistence.saveSession(session, sessionID: entity.id)
+        _ = try persistence.completeSession(sessionID: entity.id)
+
+        let history = try #require(try persistence.fetchWorkoutHistory().first)
+
+        #expect(history.exercisesCompleted == 0)
+        #expect(history.exerciseResults[0].completedSets == 1)
+        #expect(history.exerciseResults[0].completedReps == 12)
+        #expect(history.exerciseResults[1].completedSets == 0)
+        #expect(history.exerciseResults[1].completedReps == 0)
+    }
+
+    @Test
+    func legacyHistoryWithoutExerciseSnapshotLoadsSummaryOnly() throws {
+        let container = try Self.makeContainer()
+        let context = ModelContext(container)
+        let history = WorkoutHistoryEntity(
+            workoutName: "Legacy",
+            startedAt: Date(timeIntervalSince1970: 1),
+            completedAt: Date(timeIntervalSince1970: 2),
+            duration: 60,
+            exercisesCompleted: 2
+        )
+        context.insert(history)
+        try context.save()
+
+        let records = try WorkoutPersistence(modelContext: ModelContext(container)).fetchWorkoutHistory()
+
+        #expect(records.count == 1)
+        #expect(records.first?.workoutName == "Legacy")
+        #expect(records.first?.exercisesCompleted == 2)
+        #expect(records.first?.exerciseResults.isEmpty == true)
+    }
+
+    @Test
+    func corruptedHistoryExerciseSnapshotLoadsSummaryOnly() throws {
+        let container = try Self.makeContainer()
+        let context = ModelContext(container)
+        let history = WorkoutHistoryEntity(
+            workoutName: "Corrupted Summary",
+            startedAt: Date(timeIntervalSince1970: 1),
+            completedAt: Date(timeIntervalSince1970: 2),
+            duration: 60,
+            exercisesCompleted: 2,
+            exerciseSummaryData: Data("not-json".utf8)
+        )
+        context.insert(history)
+        try context.save()
+
+        let records = try WorkoutPersistence(modelContext: ModelContext(container)).fetchWorkoutHistory()
+
+        #expect(records.count == 1)
+        #expect(records.first?.workoutName == "Corrupted Summary")
+        #expect(records.first?.exercisesCompleted == 2)
+        #expect(records.first?.exerciseResults.isEmpty == true)
+    }
+
+    @Test
     func completedSessionIsNotRestoredAsActive() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
         var session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
         let entity = try persistence.startWorkout(session)
@@ -128,27 +232,27 @@ struct WorkoutPersistenceTests {
 
     @Test
     func historyIsSortedByCompletedAtDescending() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
 
-        try completeWorkout(
+        try Self.completeWorkout(
             named: "Earlier",
             completedAt: Date(timeIntervalSince1970: 1_000),
             persistence: persistence
         )
-        try completeWorkout(
+        try Self.completeWorkout(
             named: "Later",
             completedAt: Date(timeIntervalSince1970: 2_000),
             persistence: persistence
         )
 
         let history = try persistence.fetchWorkoutHistory()
-        #expect(history.map(\.workoutName) == ["Later", "Earlier"])
+        #expect(history.map { $0.workoutName } == ["Later", "Earlier"])
     }
 
     @Test
     func deletingUnfinishedSessionRemovesOnlyThatSession() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let persistence = WorkoutPersistence(modelContext: ModelContext(container))
         let abandoned = WorkoutSession(
             workout: WorkoutMapperTests.makeWorkout(name: "Abandoned"),
@@ -169,7 +273,7 @@ struct WorkoutPersistenceTests {
 
     @Test
     func corruptedSnapshotDuringRestoreThrows() throws {
-        let container = try makeContainer()
+        let container = try Self.makeContainer()
         let context = ModelContext(container)
         let workoutEntity = WorkoutEntity(
             id: UUID(),
@@ -195,6 +299,26 @@ struct WorkoutPersistenceTests {
         }
     }
 
+    @Test
+    func missingWorkoutRelationshipDuringRestoreThrows() throws {
+        let container = try Self.makeContainer()
+        let context = ModelContext(container)
+        let sessionEntity = WorkoutSessionEntity(workoutName: "Missing Workout")
+        context.insert(sessionEntity)
+        try context.save()
+
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+
+        do {
+            _ = try persistence.loadActiveSession()
+            Issue.record("Expected missing workout relationship restoration to throw.")
+        } catch WorkoutSessionMappingError.missingWorkoutRelationship(let id) {
+            #expect(id == sessionEntity.id)
+        } catch {
+            Issue.record("Expected missingWorkoutRelationship, got \(error).")
+        }
+    }
+
     private static func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             WorkoutEntity.self,
@@ -217,5 +341,14 @@ struct WorkoutPersistenceTests {
         session.elapsedTime = completedAt.timeIntervalSince(session.startedAt)
         try persistence.saveSession(session, sessionID: session.id)
         _ = try persistence.completeSession(sessionID: session.id)
+    }
+
+    private static func partialExerciseResults(for workout: Workout) -> [WorkoutExerciseResult] {
+        var results = ActiveWorkout(workout: workout).exerciseResults
+        results[0].completedSets = 3
+        results[0].completedReps = 36
+        results[1].completedSets = 1
+        results[1].completedReps = 10
+        return results
     }
 }

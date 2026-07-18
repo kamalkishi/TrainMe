@@ -74,6 +74,19 @@ struct WorkoutExerciseResultTests {
     }
 
     @Test
+    func navigatingExercisesWithoutCompletedSetsDoesNotMarkExerciseCompleted() {
+        let repository = ExerciseResultRepositorySpy()
+        let workout = WorkoutMapperTests.makeWorkout()
+        let viewModel = Self.makeStartedViewModel(workout: workout, repository: repository)
+
+        viewModel.nextExercise()
+
+        #expect(viewModel.activeWorkout.completedExerciseCount == 0)
+        #expect(repository.updatedSession?.completedExercises == 0)
+        #expect(repository.updatedSession?.exerciseResults.allSatisfy { $0.completedSets == 0 } == true)
+    }
+
+    @Test
     func naturalCompletionRecordsAccurateExerciseResultsAndSummary() throws {
         let repository = ExerciseResultRepositorySpy()
         let workout = WorkoutMapperTests.makeWorkout()
@@ -143,6 +156,53 @@ struct WorkoutExerciseResultTests {
     }
 
     @Test
+    func naturalCompletionPersistsExerciseResultsIntoHistory() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
+        let workout = WorkoutMapperTests.makeWorkout()
+        repository.startSession(for: workout)
+        let session = try #require(repository.fetchActiveSession())
+        let viewModel = ActiveWorkoutViewModel(session: session, repository: repository)
+
+        for _ in 0..<5 {
+            viewModel.completeSet()
+        }
+
+        let history = try #require(repository.fetchWorkoutHistory().first)
+
+        #expect(history.exerciseResults.count == 2)
+        #expect(history.exerciseResults[0].completedSets == 3)
+        #expect(history.exerciseResults[0].completedReps == 36)
+        #expect(history.exerciseResults[1].completedSets == 2)
+        #expect(history.exerciseResults[1].completedReps == 20)
+    }
+
+    @Test
+    func manualFinishPersistsPartialExerciseResultsIntoHistory() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
+        let workout = WorkoutMapperTests.makeWorkout()
+        repository.startSession(for: workout)
+        let session = try #require(repository.fetchActiveSession())
+        let viewModel = ActiveWorkoutViewModel(session: session, repository: repository)
+
+        for _ in 0..<4 {
+            viewModel.completeSet()
+        }
+        _ = try #require(viewModel.finishWorkout())
+
+        let history = try #require(repository.fetchWorkoutHistory().first)
+
+        #expect(history.exerciseResults.count == 2)
+        #expect(history.exerciseResults[0].completedSets == 3)
+        #expect(history.exerciseResults[0].completedReps == 36)
+        #expect(history.exerciseResults[1].completedSets == 1)
+        #expect(history.exerciseResults[1].completedReps == 10)
+    }
+
+    @Test
     func restoringSessionDoesNotDuplicateExerciseResults() {
         let workout = WorkoutMapperTests.makeWorkout()
         let duplicateResults = ActiveWorkout(workout: workout).exerciseResults + ActiveWorkout(workout: workout).exerciseResults
@@ -176,6 +236,43 @@ struct WorkoutExerciseResultTests {
         #expect(restored.exerciseResults[0].completedReps == 36)
         #expect(restored.exerciseResults[1].completedSets == 1)
         #expect(restored.exerciseResults[1].completedReps == 10)
+    }
+
+    @Test
+    func corruptedActiveSessionExerciseResultsSnapshotFallsBackToLegacyResults() throws {
+        let container = try Self.makeContainer()
+        let context = ModelContext(container)
+        let workout = WorkoutMapperTests.makeWorkout()
+        let workoutEntity = try WorkoutMapper.entity(from: workout)
+        let sessionEntity = WorkoutSessionEntity(
+            id: UUID(),
+            workoutName: workout.name,
+            currentExerciseIndex: 1,
+            currentSet: 2,
+            completedExercises: 1,
+            completedReps: 46,
+            exerciseResultsData: Data("not-json".utf8),
+            elapsedTime: 300
+        )
+        sessionEntity.workout = workoutEntity
+        context.insert(workoutEntity)
+        context.insert(sessionEntity)
+        try context.save()
+
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        let restoredSession = try #require(try persistence.loadActiveSession())
+        let restoredWorkout = ActiveWorkout(session: restoredSession)
+
+        #expect(restoredSession.id == sessionEntity.id)
+        #expect(restoredSession.exerciseResults.isEmpty)
+        #expect(restoredWorkout.currentExerciseIndex == 1)
+        #expect(restoredWorkout.currentSet == 2)
+        #expect(restoredWorkout.completedReps == 46)
+        #expect(restoredWorkout.exerciseResults[0].completedSets == 3)
+        #expect(restoredWorkout.exerciseResults[0].completedReps == 36)
+        #expect(restoredWorkout.exerciseResults[1].completedSets == 1)
+        #expect(restoredWorkout.exerciseResults[1].completedReps == 10)
+        #expect(try persistence.loadActiveSession()?.id == sessionEntity.id)
     }
 
     private static func makeStartedViewModel(

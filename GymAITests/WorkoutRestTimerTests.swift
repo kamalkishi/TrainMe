@@ -10,13 +10,13 @@ struct WorkoutRestTimerTests {
     func completingNormalNonFinalSetRequestsOneRestTimer() throws {
         let repository = RestTimerRepositorySpy()
         let workout = Self.makeWorkout(targetSets: 3, restSeconds: 75)
-        let viewModel = ActiveWorkoutViewModel(workout: workout, repository: repository)
+        let viewModel = Self.makeStartedViewModel(workout: workout, repository: repository)
 
         viewModel.completeSet()
 
         let context = try #require(viewModel.pendingRestTimerContext)
         #expect(context.durationSeconds == 75)
-        #expect(context.exerciseName == "Rest Test")
+        #expect(context.exerciseName == "Goblet Squat")
         #expect(context.upcomingSet == 2)
         #expect(repository.updateSessionCallCount == 1)
         #expect(repository.saveCallCount == 0)
@@ -25,16 +25,35 @@ struct WorkoutRestTimerTests {
     }
 
     @Test
-    func completingExerciseFinalSetUsesCompletedExerciseRestAndUpcomingSet() throws {
+    func completingSecondSetOfSameExerciseRequestsThirdSetForCurrentExercise() throws {
         let repository = RestTimerRepositorySpy()
-        let workout = Self.makeTwoExerciseWorkout(firstRestSeconds: 45)
-        let viewModel = ActiveWorkoutViewModel(workout: workout, repository: repository)
+        let workout = Self.makeWorkout(targetSets: 3, restSeconds: 75)
+        let viewModel = Self.makeStartedViewModel(workout: workout, repository: repository)
 
+        viewModel.completeSet()
+        viewModel.completeSet()
+
+        let context = try #require(viewModel.pendingRestTimerContext)
+        #expect(context.durationSeconds == 75)
+        #expect(context.exerciseName == "Goblet Squat")
+        #expect(context.upcomingSet == 3)
+        #expect(repository.updateSessionCallCount == 2)
+        #expect(repository.saveCallCount == 0)
+    }
+
+    @Test
+    func completingExerciseFinalSetUsesUpcomingExerciseNameAndCompletedExerciseRest() throws {
+        let repository = RestTimerRepositorySpy()
+        let workout = Self.makeTwoExerciseWorkout(firstTargetSets: 3, firstRestSeconds: 45)
+        let viewModel = Self.makeStartedViewModel(workout: workout, repository: repository)
+
+        viewModel.completeSet()
+        viewModel.completeSet()
         viewModel.completeSet()
 
         let context = try #require(viewModel.pendingRestTimerContext)
         #expect(context.durationSeconds == 45)
-        #expect(context.exerciseName == "First Exercise")
+        #expect(context.exerciseName == "Push-up")
         #expect(context.upcomingSet == 1)
         #expect(viewModel.currentExerciseNumber == 2)
         #expect(repository.saveCallCount == 0)
@@ -44,7 +63,7 @@ struct WorkoutRestTimerTests {
     func completingFinalWorkoutSetDoesNotRequestRestAndCreatesSummary() {
         let repository = RestTimerRepositorySpy()
         let workout = Self.makeWorkout(targetSets: 1, restSeconds: 90)
-        let viewModel = ActiveWorkoutViewModel(workout: workout, repository: repository)
+        let viewModel = Self.makeStartedViewModel(workout: workout, repository: repository)
 
         viewModel.completeSet()
 
@@ -58,7 +77,7 @@ struct WorkoutRestTimerTests {
         for restSeconds in [0, -15] {
             let repository = RestTimerRepositorySpy()
             let workout = Self.makeWorkout(targetSets: 3, restSeconds: restSeconds)
-            let viewModel = ActiveWorkoutViewModel(workout: workout, repository: repository)
+            let viewModel = Self.makeStartedViewModel(workout: workout, repository: repository)
 
             viewModel.completeSet()
 
@@ -172,10 +191,10 @@ struct WorkoutRestTimerTests {
             exercises: [
                 WorkoutExercise(
                     exercise: Exercise(
-                        name: "Rest Test",
-                        muscleGroups: [.chest],
+                        name: "Goblet Squat",
+                        muscleGroups: [.quadriceps, .glutes],
                         workoutType: .strength,
-                        requiresWeight: false
+                        requiresWeight: true
                     ),
                     targetSets: targetSets,
                     targetReps: 8,
@@ -187,7 +206,17 @@ struct WorkoutRestTimerTests {
         )
     }
 
+    private static func makeStartedViewModel(
+        workout: Workout,
+        repository: RestTimerRepositorySpy
+    ) -> ActiveWorkoutViewModel {
+        repository.startSession(for: workout)
+        let session = repository.sessionToFetch ?? WorkoutSession(workout: workout)
+        return ActiveWorkoutViewModel(session: session, repository: repository)
+    }
+
     private static func makeTwoExerciseWorkout(
+        firstTargetSets: Int = 1,
         firstRestSeconds: Int
     ) -> Workout {
         Workout(
@@ -196,19 +225,19 @@ struct WorkoutRestTimerTests {
             exercises: [
                 WorkoutExercise(
                     exercise: Exercise(
-                        name: "First Exercise",
-                        muscleGroups: [.chest],
+                        name: "Goblet Squat",
+                        muscleGroups: [.quadriceps, .glutes],
                         workoutType: .strength,
-                        requiresWeight: false
+                        requiresWeight: true
                     ),
-                    targetSets: 1,
+                    targetSets: firstTargetSets,
                     targetReps: 8,
                     restSeconds: firstRestSeconds
                 ),
                 WorkoutExercise(
                     exercise: Exercise(
-                        name: "Second Exercise",
-                        muscleGroups: [.back],
+                        name: "Push-up",
+                        muscleGroups: [.chest, .triceps],
                         workoutType: .strength,
                         requiresWeight: false
                     ),

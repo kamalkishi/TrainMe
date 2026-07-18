@@ -236,7 +236,8 @@ final class WorkoutPersistence {
                     startedAt: existingHistory.startedAt,
                     completedAt: existingHistory.completedAt,
                     duration: existingHistory.duration,
-                    exercisesCompleted: existingHistory.exercisesCompleted
+                    exercisesCompleted: existingHistory.exercisesCompleted,
+                    exerciseResults: WorkoutSessionRecord(entity: existingHistory).exerciseResults
                 )
             }
 
@@ -263,7 +264,8 @@ final class WorkoutPersistence {
                 startedAt: existingHistory.startedAt,
                 completedAt: existingHistory.completedAt,
                 duration: existingHistory.duration,
-                exercisesCompleted: existingHistory.exercisesCompleted
+                exercisesCompleted: existingHistory.exercisesCompleted,
+                exerciseResults: WorkoutSessionRecord(entity: existingHistory).exerciseResults
             )
         } else {
             session.completed = true
@@ -276,6 +278,7 @@ final class WorkoutPersistence {
             let duration = session.elapsedTime > 0
                 ? session.elapsedTime
                 : completedAt.timeIntervalSince(session.startedAt)
+            let exerciseSummary = Self.exerciseSummary(from: session)
 
             let history = WorkoutHistoryEntity(
                 id: session.id,
@@ -283,7 +286,8 @@ final class WorkoutPersistence {
                 startedAt: session.startedAt,
                 completedAt: completedAt,
                 duration: duration,
-                exercisesCompleted: session.completedExercises
+                exercisesCompleted: session.completedExercises,
+                exerciseSummaryData: try WorkoutSessionRecord.encodeExerciseSummary(exerciseSummary)
             )
 
             modelContext.insert(history)
@@ -312,7 +316,8 @@ final class WorkoutPersistence {
                 startedAt: history.startedAt,
                 completedAt: history.completedAt,
                 duration: history.duration,
-                exercisesCompleted: history.exercisesCompleted
+                exercisesCompleted: history.exercisesCompleted,
+                exerciseResults: exerciseSummary
             )
         }
     }
@@ -333,17 +338,7 @@ final class WorkoutPersistence {
             ["history.count=\(entities.count)"]
         )
 
-        return entities.map {
-
-            WorkoutSessionRecord(
-                id: $0.id,
-                workoutName: $0.workoutName,
-                startedAt: $0.startedAt,
-                completedAt: $0.completedAt,
-                duration: $0.duration,
-                exercisesCompleted: $0.exercisesCompleted
-            )
-        }
+        return entities.map(WorkoutSessionRecord.init(entity:))
     }
 
     func deleteSession(sessionID: UUID) throws {
@@ -405,6 +400,16 @@ final class WorkoutPersistence {
             "Persistence.deleteIncompleteSessions.afterSave",
             ["deleted.count=\(sessions.count)"]
         )
+    }
+
+    private static func exerciseSummary(from session: WorkoutSessionEntity) -> [WorkoutHistoryExerciseRecord] {
+        guard let exerciseResultsData = session.exerciseResultsData,
+              let exerciseResults = try? JSONDecoder().decode([WorkoutExerciseResult].self, from: exerciseResultsData)
+        else {
+            return []
+        }
+
+        return WorkoutSessionRecord.exerciseSummary(from: exerciseResults)
     }
 }
 
