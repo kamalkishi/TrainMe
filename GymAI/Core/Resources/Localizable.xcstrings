@@ -143,6 +143,28 @@
         }
       }
     },
+    "history.detail.coming_soon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coming Soon"
+          }
+        }
+      }
+    },
+    "history.detail.duration.minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        }
+      }
+    },
     "history.detail.section.summary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -150,6 +172,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Summary"
+          }
+        }
+      }
+    },
+    "history.detail.section.ai_insights" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Insights"
+          }
+        }
+      }
+    },
+    "history.detail.section.notes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes"
           }
         }
       }
@@ -165,6 +209,28 @@
         }
       }
     },
+    "history.detail.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "history.detail.status.completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed"
+          }
+        }
+      }
+    },
     "history.detail.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -172,6 +238,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Workout Details"
+          }
+        }
+      }
+    },
+    "history.detail.total_sets_completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Sets Completed"
+          }
+        }
+      }
+    },
+    "history.detail.value_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Available"
           }
         }
       }

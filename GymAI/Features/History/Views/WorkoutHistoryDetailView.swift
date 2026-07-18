@@ -1,36 +1,113 @@
 import SwiftUI
 
-struct WorkoutHistoryDetailView: View {
+struct WorkoutHistoryDetailViewModel {
 
     let record: WorkoutSessionRecord
+
+    var workoutName: String {
+        let trimmedName = record.workoutName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty
+            ? String(localized: "history.detail.value_unavailable")
+            : trimmedName
+    }
+
+    var completionStatus: String {
+        String(localized: "history.detail.status.completed")
+    }
+
+    var startedAt: String {
+        formattedDate(record.startedAt)
+    }
+
+    var completedAt: String {
+        formattedDate(record.completedAt)
+    }
+
+    var duration: String {
+        guard record.duration > 0 else {
+            return String(localized: "history.detail.value_unavailable")
+        }
+
+        return String(
+            format: String(localized: "history.detail.duration.minutes"),
+            Int(record.duration / 60)
+        )
+    }
+
+    var exercisesCompleted: String {
+        String(record.exercisesCompleted)
+    }
+
+    var totalSetsCompleted: String {
+        String(localized: "history.detail.value_unavailable")
+    }
+
+    var comingSoon: String {
+        String(localized: "history.detail.coming_soon")
+    }
+
+    private func formattedDate(_ date: Date) -> String {
+        date.formatted(date: .abbreviated, time: .shortened)
+    }
+}
+
+struct WorkoutHistoryDetailView: View {
+
+    private let viewModel: WorkoutHistoryDetailViewModel
+
+    init(record: WorkoutSessionRecord) {
+        self.viewModel = WorkoutHistoryDetailViewModel(record: record)
+    }
 
     var body: some View {
         List {
             Section("history.detail.section.summary") {
                 labeledValue(
                     title: "history.detail.workout",
-                    value: record.workoutName
+                    value: viewModel.workoutName
+                )
+
+                labeledValue(
+                    title: "history.detail.status",
+                    value: viewModel.completionStatus
                 )
 
                 labeledValue(
                     title: "history.detail.started",
-                    value: record.startedAt.formatted(date: .abbreviated, time: .shortened)
+                    value: viewModel.startedAt
                 )
 
                 labeledValue(
                     title: "history.detail.completed",
-                    value: record.completedAt.formatted(date: .abbreviated, time: .shortened)
+                    value: viewModel.completedAt
                 )
 
                 labeledValue(
                     title: "history.detail.duration",
-                    value: formattedDuration(record.duration)
+                    value: viewModel.duration
                 )
 
                 labeledValue(
                     title: "history.detail.exercises_completed",
-                    value: String(record.exercisesCompleted)
+                    value: viewModel.exercisesCompleted
                 )
+
+                labeledValue(
+                    title: "history.detail.total_sets_completed",
+                    value: viewModel.totalSetsCompleted
+                )
+            }
+
+            Section("history.detail.section.notes") {
+                Text(viewModel.comingSoon)
+                    .font(AppFont.body)
+                    .foregroundStyle(AppColor.textSecondary)
+            }
+
+            Section("history.detail.section.ai_insights") {
+                Text(viewModel.comingSoon)
+                    .font(AppFont.body)
+                    .foregroundStyle(AppColor.textSecondary)
             }
         }
         .navigationTitle("history.detail.title")
@@ -45,13 +122,6 @@ struct WorkoutHistoryDetailView: View {
             Text(value)
                 .font(AppFont.body)
         }
-    }
-
-    private func formattedDuration(_ duration: TimeInterval) -> String {
-        String(
-            format: NSLocalizedString("%lld min", comment: "Workout duration in minutes."),
-            Int(duration / 60)
-        )
     }
 }
 
