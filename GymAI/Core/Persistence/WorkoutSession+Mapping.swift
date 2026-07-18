@@ -28,11 +28,12 @@ extension WorkoutSession {
             currentSet: entity.currentSet,
             completedExercises: entity.completedExercises,
             completedReps: entity.completedReps,
+            exerciseResults: Self.exerciseResults(from: entity),
             elapsedTime: entity.elapsedTime
         )
     }
 
-    func update(_ entity: WorkoutSessionEntity) {
+    func update(_ entity: WorkoutSessionEntity) throws {
 
         entity.workoutName = workout.name
         entity.startedAt = startedAt
@@ -42,13 +43,30 @@ extension WorkoutSession {
         entity.currentSet = currentSet
         entity.completedExercises = completedExercises
         entity.completedReps = completedReps
+        entity.exerciseResultsData = try Self.encodeExerciseResults(exerciseResults)
         entity.elapsedTime = elapsedTime
+    }
+
+    static func encodeExerciseResults(_ exerciseResults: [WorkoutExerciseResult]) throws -> Data? {
+        guard !exerciseResults.isEmpty else {
+            return nil
+        }
+
+        return try JSONEncoder().encode(exerciseResults)
+    }
+
+    private static func exerciseResults(from entity: WorkoutSessionEntity) -> [WorkoutExerciseResult] {
+        guard let exerciseResultsData = entity.exerciseResultsData else {
+            return []
+        }
+
+        return (try? JSONDecoder().decode([WorkoutExerciseResult].self, from: exerciseResultsData)) ?? []
     }
 }
 
 extension WorkoutSessionEntity {
 
-    convenience init(session: WorkoutSession) {
+    convenience init(session: WorkoutSession) throws {
 
         self.init(
             id: session.id,
@@ -60,6 +78,7 @@ extension WorkoutSessionEntity {
             currentSet: session.currentSet,
             completedExercises: session.completedExercises,
             completedReps: session.completedReps,
+            exerciseResultsData: try WorkoutSession.encodeExerciseResults(session.exerciseResults),
             elapsedTime: session.elapsedTime
         )
     }

@@ -18,6 +18,7 @@ final class WorkoutSessionEntity {
     var currentSet: Int
     var completedExercises: Int
     var completedReps: Int
+    var exerciseResultsData: Data?
     var elapsedTime: TimeInterval
 
     init(
@@ -30,6 +31,7 @@ final class WorkoutSessionEntity {
         currentSet: Int = 1,
         completedExercises: Int = 0,
         completedReps: Int = 0,
+        exerciseResultsData: Data? = nil,
         elapsedTime: TimeInterval = 0
     ) {
         self.id = id
@@ -41,6 +43,7 @@ final class WorkoutSessionEntity {
         self.currentSet = currentSet
         self.completedExercises = completedExercises
         self.completedReps = completedReps
+        self.exerciseResultsData = exerciseResultsData
         self.elapsedTime = elapsedTime
     }
 }

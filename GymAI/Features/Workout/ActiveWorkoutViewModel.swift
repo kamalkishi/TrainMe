@@ -231,6 +231,7 @@ final class ActiveWorkoutViewModel {
         
         if activeWorkout.currentSet < workoutExercise.targetSets {
 
+            activeWorkout.recordCompletedSet(for: workoutExercise)
             activeWorkout.completedReps += workoutExercise.targetReps
             activeWorkout.currentSet += 1
             WorkoutLifecycleLog.event(
@@ -246,6 +247,7 @@ final class ActiveWorkoutViewModel {
 
         } else {
 
+            activeWorkout.recordCompletedSet(for: workoutExercise)
             activeWorkout.completedReps += workoutExercise.targetReps
             WorkoutLifecycleLog.event(
                 "ActiveWorkoutViewModel.completeSet.finishedExercise",
@@ -289,6 +291,7 @@ final class ActiveWorkoutViewModel {
                     session.currentSet = activeWorkout.currentSet
                     session.completedExercises = workout.exercises.count
                     session.completedReps = activeWorkout.completedReps
+                    session.exerciseResults = activeWorkout.exerciseResults
                     session.elapsedTime = session.endedAt?.timeIntervalSince(session.startedAt) ?? 0
                     WorkoutLifecycleLog.event(
                         "ActiveWorkoutViewModel.completeSet.finalSet.beforeSaveHistory",
@@ -363,7 +366,9 @@ final class ActiveWorkoutViewModel {
 
         session.completed = true
         session.endedAt = Date()
+        session.completedExercises = activeWorkout.completedExerciseCount
         session.completedReps = activeWorkout.completedReps
+        session.exerciseResults = activeWorkout.exerciseResults
         session.elapsedTime = session.endedAt?.timeIntervalSince(session.startedAt) ?? 0
 
         WorkoutLifecycleLog.event(
@@ -444,8 +449,9 @@ final class ActiveWorkoutViewModel {
 
         session.currentExerciseIndex = activeWorkout.currentExerciseIndex
         session.currentSet = activeWorkout.currentSet
-        session.completedExercises = activeWorkout.currentExerciseIndex
+        session.completedExercises = activeWorkout.completedExerciseCount
         session.completedReps = activeWorkout.completedReps
+        session.exerciseResults = activeWorkout.exerciseResults
         session.elapsedTime = Date().timeIntervalSince(session.startedAt)
 
         WorkoutLifecycleLog.event(

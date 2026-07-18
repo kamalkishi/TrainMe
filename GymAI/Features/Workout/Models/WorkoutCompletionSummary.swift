@@ -35,72 +35,16 @@ struct WorkoutCompletionSummary: Identifiable, Hashable {
         includesCurrentSetCompletion: Bool
     ) {
         let workout = activeWorkout.workout
-        let exerciseIndex = Self.validExerciseIndex(
-            activeWorkout.currentExerciseIndex,
-            exerciseCount: workout.exercises.count
-        )
-        let completedSets = Self.completedSets(
-            workout: workout,
-            currentExerciseIndex: exerciseIndex,
-            currentSet: activeWorkout.currentSet,
-            includesCurrentSetCompletion: includesCurrentSetCompletion
-        )
 
         self.init(
             id: sessionID,
             workoutName: workout.name,
             duration: duration,
-            completedExercises: activeWorkout.isCompleted
-                ? workout.exercises.count
-                : min(max(activeWorkout.currentExerciseIndex, 0), workout.exercises.count),
-            completedSets: completedSets,
-            completedReps: activeWorkout.completedReps,
+            completedExercises: activeWorkout.completedExerciseCount,
+            completedSets: activeWorkout.completedSetCount,
+            completedReps: activeWorkout.completedResultReps,
             plannedTargets: workout.exercises.map(PlannedExerciseTarget.init(workoutExercise:))
         )
-    }
-
-    private static func completedSets(
-        workout: Workout,
-        currentExerciseIndex: Int,
-        currentSet: Int,
-        includesCurrentSetCompletion: Bool
-    ) -> Int {
-        guard workout.exercises.indices.contains(currentExerciseIndex) else {
-            return 0
-        }
-
-        let priorExerciseSets = workout.exercises
-            .prefix(currentExerciseIndex)
-            .reduce(0) { total, workoutExercise in
-                total + workoutExercise.targetSets
-            }
-        let currentExercise = workout.exercises[currentExerciseIndex]
-        let currentExerciseCompletedSets: Int
-
-        if includesCurrentSetCompletion {
-            currentExerciseCompletedSets = min(
-                max(currentSet, 0),
-                currentExercise.targetSets
-            )
-        } else {
-            currentExerciseCompletedSets = min(
-                max(currentSet - 1, 0),
-                currentExercise.targetSets
-            )
-        }
-
-        return priorExerciseSets + currentExerciseCompletedSets
-    }
-
-    private static func validExerciseIndex(
-        _ index: Int,
-        exerciseCount: Int
-    ) -> Int {
-        guard exerciseCount > 0 else {
-            return 0
-        }
-
-        return min(max(index, 0), exerciseCount - 1)
     }
 }
 

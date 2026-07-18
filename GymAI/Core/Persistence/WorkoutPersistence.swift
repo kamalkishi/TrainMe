@@ -29,7 +29,7 @@ final class WorkoutPersistence {
 
         let workoutEntity = try workoutEntity(for: session.workout)
 
-        let entity = WorkoutSessionEntity(session: session)
+        let entity = try WorkoutSessionEntity(session: session)
 
         entity.workout = workoutEntity
 
@@ -120,6 +120,7 @@ final class WorkoutPersistence {
         entity.currentSet = session.currentSet
         entity.completedExercises = session.completedExercises
         entity.completedReps = session.completedReps
+        entity.exerciseResultsData = try WorkoutSession.encodeExerciseResults(session.exerciseResults)
         entity.elapsedTime = session.elapsedTime
 
         WorkoutLifecycleLog.event(

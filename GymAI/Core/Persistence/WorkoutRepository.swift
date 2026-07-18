@@ -180,7 +180,8 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
             return
         }
 
-        let session = WorkoutSession(workout: workout)
+        var session = WorkoutSession(workout: workout)
+        session.exerciseResults = ActiveWorkout(workout: workout).exerciseResults
 
         activeSession = session
         activeSessionID = session.id
