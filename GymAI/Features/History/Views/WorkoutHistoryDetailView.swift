@@ -12,6 +12,13 @@ struct WorkoutHistoryDetailViewModel {
         let plannedReps: String
         let plannedRest: String
         let status: String
+        let statusKind: ExerciseStatusKind
+    }
+
+    enum ExerciseStatusKind: Hashable {
+        case complete
+        case partial
+        case unstarted
     }
 
     var workoutName: String {
@@ -82,7 +89,8 @@ struct WorkoutHistoryDetailViewModel {
                     format: String(localized: "history.detail.exercise.rest_format"),
                     exercise.plannedRestSeconds
                 ),
-                status: status(for: exercise)
+                status: status(for: exercise),
+                statusKind: statusKind(for: exercise)
             )
         }
     }
@@ -100,15 +108,26 @@ struct WorkoutHistoryDetailViewModel {
     }
 
     private func status(for exercise: WorkoutHistoryExerciseRecord) -> String {
-        if exercise.completedSets >= exercise.plannedSets && exercise.plannedSets > 0 {
+        switch statusKind(for: exercise) {
+        case .complete:
             return String(localized: "history.detail.exercise.status.complete")
+        case .partial:
+            return String(localized: "history.detail.exercise.status.partial")
+        case .unstarted:
+            return String(localized: "history.detail.exercise.status.unstarted")
+        }
+    }
+
+    private func statusKind(for exercise: WorkoutHistoryExerciseRecord) -> ExerciseStatusKind {
+        if exercise.completedSets >= exercise.plannedSets && exercise.plannedSets > 0 {
+            return .complete
         }
 
         if exercise.completedSets > 0 || exercise.completedReps > 0 {
-            return String(localized: "history.detail.exercise.status.partial")
+            return .partial
         }
 
-        return String(localized: "history.detail.exercise.status.unstarted")
+        return .unstarted
     }
 }
 
@@ -198,34 +217,64 @@ struct WorkoutHistoryDetailView: View {
     }
 
     private func exerciseDetail(_ exercise: WorkoutHistoryDetailViewModel.ExerciseDetail) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
                 Text(exercise.exerciseName)
                     .font(AppFont.headline)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                Spacer()
+                Spacer(minLength: Spacing.sm)
 
-                Text(exercise.status)
-                    .font(AppFont.caption)
-                    .foregroundStyle(AppColor.textSecondary)
+                statusBadge(exercise.status, kind: exercise.statusKind)
             }
 
-            Text(exercise.sets)
-                .font(AppFont.body)
+            VStack(spacing: Spacing.xs) {
+                exerciseMetric(title: "history.detail.exercise.sets", value: exercise.sets)
+                exerciseMetric(title: "history.detail.exercise.completed_reps", value: exercise.completedReps)
+                exerciseMetric(title: "history.detail.exercise.planned_reps", value: exercise.plannedReps)
+                exerciseMetric(title: "history.detail.exercise.rest", value: exercise.plannedRest)
+            }
+        }
+        .padding(.vertical, Spacing.xs)
+    }
 
-            Text(exercise.completedReps)
+    private func exerciseMetric(title: LocalizedStringKey, value: String) -> some View {
+        LabeledContent {
+            Text(value)
                 .font(AppFont.caption)
-                .foregroundStyle(AppColor.textSecondary)
-
-            Text(exercise.plannedReps)
-                .font(AppFont.caption)
-                .foregroundStyle(AppColor.textSecondary)
-
-            Text(exercise.plannedRest)
+                .foregroundStyle(AppColor.textPrimary)
+                .multilineTextAlignment(.trailing)
+        } label: {
+            Text(title)
                 .font(AppFont.caption)
                 .foregroundStyle(AppColor.textSecondary)
         }
-        .padding(.vertical, Spacing.xs)
+    }
+
+    private func statusBadge(
+        _ status: String,
+        kind: WorkoutHistoryDetailViewModel.ExerciseStatusKind
+    ) -> some View {
+        let tint = statusTint(for: kind)
+
+        return Text(status)
+            .font(AppFont.caption)
+            .foregroundStyle(tint)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
+            .background(tint.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private func statusTint(for kind: WorkoutHistoryDetailViewModel.ExerciseStatusKind) -> Color {
+        switch kind {
+        case .complete:
+            return AppColor.accent
+        case .partial:
+            return AppColor.primary
+        case .unstarted:
+            return AppColor.textSecondary
+        }
     }
 }
 

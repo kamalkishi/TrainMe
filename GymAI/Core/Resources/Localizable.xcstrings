@@ -264,6 +264,28 @@
         }
       }
     },
+    "history.detail.exercise.completed_reps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed Reps"
+          }
+        }
+      }
+    },
+    "history.detail.exercise.planned_reps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned Reps"
+          }
+        }
+      }
+    },
     "history.detail.exercise.planned_reps_format" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -275,6 +297,17 @@
         }
       }
     },
+    "history.detail.exercise.rest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned Rest"
+          }
+        }
+      }
+    },
     "history.detail.exercise.rest_format" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -282,6 +315,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld sec rest planned"
+          }
+        }
+      }
+    },
+    "history.detail.exercise.sets" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sets"
           }
         }
       }
