@@ -4,14 +4,18 @@ import Observation
 struct FreshWorkoutDestination: Identifiable, Hashable {
 
     let id: UUID
-    let workout: Workout
+    let session: WorkoutSession
+
+    var workout: Workout {
+        session.workout
+    }
 
     init(
         id: UUID = UUID(),
-        workout: Workout
+        session: WorkoutSession
     ) {
         self.id = id
-        self.workout = workout
+        self.session = session
     }
 }
 
@@ -42,20 +46,48 @@ final class WorkoutDetailsViewModel {
         )
 
         if let activeSession = repository.fetchActiveSession() {
+            freshWorkoutDestination = nil
             sessionToContinue = activeSession
             WorkoutLifecycleLog.event(
                 "WorkoutDetailsViewModel.startWorkout.resumeExisting",
                 diagnosticFields + WorkoutLifecycleLog.session(activeSession)
             )
         } else {
-            freshWorkoutDestination = FreshWorkoutDestination(workout: workout)
+            sessionToContinue = nil
+            WorkoutLifecycleLog.event(
+                "WorkoutDetailsViewModel.startWorkout.createFreshSession",
+                diagnosticFields + WorkoutLifecycleLog.workout(workout)
+            )
+            repository.startSession(for: workout)
+
+            guard let session = repository.fetchActiveSession() else {
+                WorkoutLifecycleLog.event(
+                    "WorkoutDetailsViewModel.startWorkout.freshSessionMissing",
+                    diagnosticFields + WorkoutLifecycleLog.workout(workout)
+                )
+                return
+            }
+
+            freshWorkoutDestination = FreshWorkoutDestination(session: session)
             WorkoutLifecycleLog.event(
                 "WorkoutDetailsViewModel.startWorkout.freshDestinationCreated",
                 diagnosticFields
-                + WorkoutLifecycleLog.workout(workout)
+                + WorkoutLifecycleLog.session(session)
                 + ["freshDestination.id=\(freshWorkoutDestination?.id.uuidString ?? "nil")"]
             )
         }
+    }
+
+    func dismissWorkoutSessionDestination(reason: String) {
+        WorkoutLifecycleLog.event(
+            "WorkoutDetailsViewModel.dismissWorkoutSessionDestination",
+            diagnosticFields
+            + ["reason=\(reason)"]
+            + WorkoutLifecycleLog.session(sessionToContinue, label: "details.sessionToContinue")
+            + WorkoutLifecycleLog.session(freshWorkoutDestination?.session, label: "details.freshSession")
+        )
+        sessionToContinue = nil
+        freshWorkoutDestination = nil
     }
 
     private var diagnosticFields: [String] {

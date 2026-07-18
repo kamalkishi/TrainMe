@@ -513,6 +513,28 @@
         }
       }
     },
+    "workout.saved_banner.named_title %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Saved"
+          }
+        }
+      }
+    },
+    "workout.saved_banner.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workout Saved"
+          }
+        }
+      }
+    },
     "workout.start" : {
       "extractionState" : "manual",
       "localizations" : {

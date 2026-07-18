@@ -4,16 +4,20 @@ struct WorkoutSessionView: View {
 
     private let diagnosticID = UUID()
     private let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    private let onWorkoutManuallyFinished: (WorkoutCompletionSummary) -> Void
     private let onRestTimerRequested: (RestTimerContext) -> Void
 
     @State private var viewModel: ActiveWorkoutViewModel
+    @State private var didNotifyManualFinish = false
 
     init(
         workout: Workout,
         onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onWorkoutManuallyFinished: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
         onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onWorkoutManuallyFinished = onWorkoutManuallyFinished
         self.onRestTimerRequested = onRestTimerRequested
         _viewModel = State(
             initialValue: ActiveWorkoutViewModel(workout: workout)
@@ -30,9 +34,11 @@ struct WorkoutSessionView: View {
     init(
         session: WorkoutSession,
         onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onWorkoutManuallyFinished: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
         onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onWorkoutManuallyFinished = onWorkoutManuallyFinished
         self.onRestTimerRequested = onRestTimerRequested
         _viewModel = State(
             initialValue: ActiveWorkoutViewModel(session: session)
@@ -146,9 +152,11 @@ struct WorkoutSessionView: View {
                         "activeWorkoutViewModel.id=\(viewModel.diagnosticIdentifier)"
                     ] + WorkoutLifecycleLog.activeWorkout(viewModel.activeWorkout)
                 )
-                viewModel.finishWorkout()
-                _ = notifyCompletionIfNeeded()
+                if let summary = viewModel.finishWorkout() {
+                    notifyManualFinish(summary)
+                }
             }
+            .disabled(viewModel.isWorkoutCompleted || didNotifyManualFinish)
         }
         .padding(AppStyle.screenPadding)
         .navigationTitle("workout.title")
@@ -198,6 +206,24 @@ struct WorkoutSessionView: View {
         )
         onWorkoutCompleted(summary)
         return true
+    }
+
+    private func notifyManualFinish(_ summary: WorkoutCompletionSummary) {
+        guard !didNotifyManualFinish else {
+            return
+        }
+
+        didNotifyManualFinish = true
+        WorkoutLifecycleLog.event(
+            "WorkoutSessionView.manualFinishCompleted",
+            [
+                "workoutSessionView.id=\(diagnosticID)",
+                "activeWorkoutViewModel.id=\(viewModel.diagnosticIdentifier)",
+                "completedSessionID=\(summary.id.uuidString)",
+                "workout.name=\(summary.workoutName)"
+            ]
+        )
+        onWorkoutManuallyFinished(summary)
     }
 
     private func notifyRestTimerIfNeeded() {

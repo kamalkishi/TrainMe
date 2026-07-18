@@ -5,15 +5,18 @@ struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @Environment(NavigationRouter.self) private var router
     private let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    private let onWorkoutManuallyFinished: (WorkoutCompletionSummary) -> Void
     private let onRestTimerRequested: (RestTimerContext) -> Void
 
     init(
         viewModel: HomeViewModel,
         onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onWorkoutManuallyFinished: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
         onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onWorkoutManuallyFinished = onWorkoutManuallyFinished
         self.onRestTimerRequested = onRestTimerRequested
     }
 
@@ -88,6 +91,14 @@ struct HomeView: View {
                     )
                     viewModel.handleWorkoutCompleted(sessionID: summary.id)
                     onWorkoutCompleted(summary)
+                },
+                onWorkoutManuallyFinished: { summary in
+                    WorkoutLifecycleLog.event(
+                        "HomeView.continueSessionManuallyFinished",
+                        ["completedSessionID=\(summary.id.uuidString)"]
+                    )
+                    viewModel.handleWorkoutCompleted(sessionID: summary.id)
+                    onWorkoutManuallyFinished(summary)
                 },
                 onRestTimerRequested: onRestTimerRequested
             )

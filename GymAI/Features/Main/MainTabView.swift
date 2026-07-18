@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct MainTabView: View {
@@ -8,6 +9,8 @@ struct MainTabView: View {
     @State private var completionSummary: WorkoutCompletionSummary?
     @State private var restTimerContext: RestTimerContext?
     @State private var presentedRestTimerContext: RestTimerContext?
+    @State private var workoutSavedBanner: WorkoutSavedBanner?
+    @State private var workoutSavedBannerDismissalTask: Task<Void, Never>?
 
     private var navigationCoordinator: MainTabNavigationCoordinator {
         MainTabNavigationCoordinator(homeViewModel: homeViewModel)
@@ -22,6 +25,7 @@ struct MainTabView: View {
                 HomeView(
                     viewModel: homeViewModel,
                     onWorkoutCompleted: presentCompletionSummary,
+                    onWorkoutManuallyFinished: handleManualWorkoutFinished,
                     onRestTimerRequested: presentRestTimer
                 )
                     .environment(router)
@@ -34,6 +38,7 @@ struct MainTabView: View {
                             HomeView(
                                 viewModel: homeViewModel,
                                 onWorkoutCompleted: presentCompletionSummary,
+                                onWorkoutManuallyFinished: handleManualWorkoutFinished,
                                 onRestTimerRequested: presentRestTimer
                             )
                                 .environment(router)
@@ -46,6 +51,7 @@ struct MainTabView: View {
                                     )
                                     presentCompletionSummary(summary)
                                 },
+                                onWorkoutManuallyFinished: handleManualWorkoutFinished,
                                 onRestTimerRequested: presentRestTimer
                             )
 
@@ -162,6 +168,15 @@ struct MainTabView: View {
                 )
             }
         }
+        .overlay(alignment: .top) {
+            if let workoutSavedBanner {
+                WorkoutSavedBannerView(banner: workoutSavedBanner)
+                    .padding(.horizontal, AppStyle.screenPadding)
+                    .padding(.top, Spacing.md)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(AppStyle.animation, value: workoutSavedBanner)
     }
 
     private func presentCompletionSummary(_ summary: WorkoutCompletionSummary) {
@@ -171,6 +186,23 @@ struct MainTabView: View {
         )
         restTimerContext = nil
         completionSummary = summary
+    }
+
+    private func handleManualWorkoutFinished(_ summary: WorkoutCompletionSummary) {
+        WorkoutLifecycleLog.event(
+            "MainTabView.manualFinishHandled",
+            [
+                "completedSessionID=\(summary.id.uuidString)",
+                "workout.name=\(summary.workoutName)"
+            ]
+        )
+        navigationCoordinator.handleWorkoutCompleted(sessionID: summary.id)
+        restTimerContext = nil
+        presentedRestTimerContext = nil
+        completionSummary = nil
+        router.path.removeAll()
+        router.path = [.workout]
+        presentWorkoutSavedBanner(workoutName: summary.workoutName)
     }
 
     private func presentRestTimer(_ context: RestTimerContext) {
@@ -198,6 +230,82 @@ struct MainTabView: View {
             "durationSeconds=\(context.durationSeconds)",
             "upcomingSet=\(context.upcomingSet)"
         ]
+    }
+
+    private func presentWorkoutSavedBanner(workoutName: String) {
+        workoutSavedBannerDismissalTask?.cancel()
+
+        let banner = WorkoutSavedBanner(workoutName: workoutName)
+        workoutSavedBanner = banner
+
+        WorkoutLifecycleLog.event(
+            "MainTabView.workoutSavedBannerPresented",
+            [
+                "banner.id=\(banner.id.uuidString)",
+                "workout.name=\(banner.workoutName ?? "nil")"
+            ]
+        )
+
+        workoutSavedBannerDismissalTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(2500))
+            } catch {
+                return
+            }
+
+            guard workoutSavedBanner?.id == banner.id else {
+                return
+            }
+
+            WorkoutLifecycleLog.event(
+                "MainTabView.workoutSavedBannerDismissed",
+                ["banner.id=\(banner.id.uuidString)"]
+            )
+            workoutSavedBanner = nil
+            workoutSavedBannerDismissalTask = nil
+        }
+    }
+}
+
+struct WorkoutSavedBanner: Identifiable, Equatable {
+
+    let id: UUID
+    let workoutName: String?
+
+    init(
+        id: UUID = UUID(),
+        workoutName: String?
+    ) {
+        self.id = id
+        let trimmedName = workoutName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.workoutName = trimmedName?.isEmpty == false ? trimmedName : nil
+    }
+}
+
+private struct WorkoutSavedBannerView: View {
+
+    let banner: WorkoutSavedBanner
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(AppColor.accent)
+
+            if let workoutName = banner.workoutName {
+                Text("workout.saved_banner.named_title \(workoutName)")
+                    .font(AppFont.headline)
+            } else {
+                Text("workout.saved_banner.title")
+                    .font(AppFont.headline)
+            }
+        }
+        .foregroundStyle(AppColor.textPrimary)
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.sm)
+        .background(AppColor.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppStyle.cornerRadius))
+        .shadow(radius: AppStyle.shadowRadius)
+        .accessibilityElement(children: .combine)
     }
 }
 

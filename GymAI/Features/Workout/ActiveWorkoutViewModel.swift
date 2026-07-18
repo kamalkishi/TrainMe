@@ -24,11 +24,10 @@ final class ActiveWorkoutViewModel {
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
 
-        repository.startSession(for: workout)
         ownedSessionID = repository.fetchActiveSession()?.id
 
         WorkoutLifecycleLog.event(
-            "ActiveWorkoutViewModel.initWorkout.afterStartSession",
+            "ActiveWorkoutViewModel.initWorkout.afterActiveSessionLookup",
             diagnosticFields
             + ["ownedSessionID=\(ownedSessionID?.uuidString ?? "nil")"]
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
@@ -49,11 +48,10 @@ final class ActiveWorkoutViewModel {
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
 
-        repository.startSession(for: workout)
         ownedSessionID = repository.fetchActiveSession()?.id
 
         WorkoutLifecycleLog.event(
-            "ActiveWorkoutViewModel.initWorkoutInjected.afterStartSession",
+            "ActiveWorkoutViewModel.initWorkoutInjected.afterActiveSessionLookup",
             diagnosticFields
             + ["ownedSessionID=\(ownedSessionID?.uuidString ?? "nil")"]
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
@@ -74,12 +72,9 @@ final class ActiveWorkoutViewModel {
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
 
-        repository.updateSession(session)
-
         WorkoutLifecycleLog.event(
-            "ActiveWorkoutViewModel.initSession.afterUpdateSession",
+            "ActiveWorkoutViewModel.initSession.ready",
             diagnosticFields
-            + WorkoutLifecycleLog.session(repository.fetchActiveSession(), label: "fetchedActiveSession")
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
     }
@@ -100,12 +95,9 @@ final class ActiveWorkoutViewModel {
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
 
-        repository.updateSession(session)
-
         WorkoutLifecycleLog.event(
-            "ActiveWorkoutViewModel.initSessionInjected.afterUpdateSession",
+            "ActiveWorkoutViewModel.initSessionInjected.ready",
             diagnosticFields
-            + WorkoutLifecycleLog.session(repository.fetchActiveSession(), label: "fetchedActiveSession")
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
     }
@@ -337,18 +329,28 @@ final class ActiveWorkoutViewModel {
         }
     }
     
-    func finishWorkout() {
+    @discardableResult
+    func finishWorkout() -> WorkoutCompletionSummary? {
         WorkoutLifecycleLog.event(
             "ActiveWorkoutViewModel.finishWorkout.begin",
             diagnosticFields + WorkoutLifecycleLog.activeWorkout(activeWorkout)
         )
+
+        guard completedSessionID == nil else {
+            WorkoutLifecycleLog.event(
+                "ActiveWorkoutViewModel.finishWorkout.ignoredAlreadyCompleted",
+                diagnosticFields
+                + ["completedSessionID=\(completedSessionID?.uuidString ?? "nil")"]
+            )
+            return nil
+        }
 
         guard var session = repository.fetchActiveSession() else {
             WorkoutLifecycleLog.event(
                 "ActiveWorkoutViewModel.finishWorkout.noActiveSession",
                 diagnosticFields + WorkoutLifecycleLog.activeWorkout(activeWorkout)
             )
-            return
+            return nil
         }
 
         guard session.id == ownedSessionID else {
@@ -356,7 +358,7 @@ final class ActiveWorkoutViewModel {
                 "ActiveWorkoutViewModel.finishWorkout.skippedSessionMismatch",
                 diagnosticFields + WorkoutLifecycleLog.session(session, label: "fetchedActiveSession")
             )
-            return
+            return nil
         }
 
         session.completed = true
@@ -372,7 +374,7 @@ final class ActiveWorkoutViewModel {
         WorkoutLifecycleLog.event(
             "ActiveWorkoutViewModel.finishWorkout.afterUpdateSession",
             diagnosticFields
-            + WorkoutLifecycleLog.session(repository.fetchActiveSession(), label: "fetchedActiveSession")
+            + WorkoutLifecycleLog.session(session, label: "updatedSession")
         )
 
         let record = WorkoutSessionRecord(
@@ -391,6 +393,7 @@ final class ActiveWorkoutViewModel {
         repository.save(record)
 
         activeWorkout.isCompleted = true
+        pendingRestTimerContext = nil
         completedSessionID = session.id
         completionSummary = WorkoutCompletionSummary(
             sessionID: session.id,
@@ -412,6 +415,8 @@ final class ActiveWorkoutViewModel {
             + WorkoutLifecycleLog.activeWorkout(activeWorkout)
             + WorkoutLifecycleLog.session(repository.fetchActiveSession(), label: "fetchedActiveSession")
         )
+
+        return completionSummary
     }
     
     private func syncSession() {

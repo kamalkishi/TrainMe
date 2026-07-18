@@ -4,6 +4,7 @@ struct WorkoutDetailsView: View {
 
     let workout: Workout
     let onWorkoutCompleted: (WorkoutCompletionSummary) -> Void
+    let onWorkoutManuallyFinished: (WorkoutCompletionSummary) -> Void
     let onRestTimerRequested: (RestTimerContext) -> Void
 
     @State private var viewModel = WorkoutDetailsViewModel()
@@ -11,10 +12,12 @@ struct WorkoutDetailsView: View {
     init(
         workout: Workout,
         onWorkoutCompleted: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
+        onWorkoutManuallyFinished: @escaping (WorkoutCompletionSummary) -> Void = { _ in },
         onRestTimerRequested: @escaping (RestTimerContext) -> Void = { _ in }
     ) {
         self.workout = workout
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.onWorkoutManuallyFinished = onWorkoutManuallyFinished
         self.onRestTimerRequested = onRestTimerRequested
     }
 
@@ -84,6 +87,10 @@ struct WorkoutDetailsView: View {
             WorkoutSessionView(
                 session: session,
                 onWorkoutCompleted: onWorkoutCompleted,
+                onWorkoutManuallyFinished: { summary in
+                    viewModel.dismissWorkoutSessionDestination(reason: "manualFinish.resumeSession")
+                    onWorkoutManuallyFinished(summary)
+                },
                 onRestTimerRequested: onRestTimerRequested
             )
         }
@@ -94,8 +101,12 @@ struct WorkoutDetailsView: View {
                 + ["freshDestination.id=\(destination.id)"]
             )
             WorkoutSessionView(
-                workout: destination.workout,
+                session: destination.session,
                 onWorkoutCompleted: onWorkoutCompleted,
+                onWorkoutManuallyFinished: { summary in
+                    viewModel.dismissWorkoutSessionDestination(reason: "manualFinish.freshSession")
+                    onWorkoutManuallyFinished(summary)
+                },
                 onRestTimerRequested: onRestTimerRequested
             )
                 .id(destination.id)
