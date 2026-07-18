@@ -28,7 +28,7 @@ struct RestTimerView: View {
                 Text(context.exerciseName)
                     .font(AppFont.title)
 
-                Text("workout.rest.upcoming_set \(context.upcomingSet)")
+                Text(formattedUpcomingSet)
                     .font(AppFont.headline)
                     .foregroundStyle(AppColor.textSecondary)
             }
@@ -52,6 +52,16 @@ struct RestTimerView: View {
         .onDisappear {
             viewModel.cancel()
         }
+    }
+
+    private var formattedUpcomingSet: String {
+        String(
+            format: NSLocalizedString(
+                "workout.rest.upcoming_set %lld",
+                comment: "Rest timer upcoming set."
+            ),
+            context.upcomingSet
+        )
     }
 }
 

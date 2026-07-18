@@ -18,64 +18,8 @@ struct MainTabView: View {
 
     var body: some View {
 
-        TabView(selection: $selectedTab) {
-
-            NavigationStack(path: $router.path) {
-
-                HomeView(
-                    viewModel: homeViewModel,
-                    onWorkoutCompleted: presentCompletionSummary,
-                    onWorkoutManuallyFinished: handleManualWorkoutFinished,
-                    onRestTimerRequested: presentRestTimer
-                )
-                    .environment(router)
-
-                    .navigationDestination(for: AppDestination.self) { destination in
-
-                        switch destination {
-
-                        case .home:
-                            HomeView(
-                                viewModel: homeViewModel,
-                                onWorkoutCompleted: presentCompletionSummary,
-                                onWorkoutManuallyFinished: handleManualWorkoutFinished,
-                                onRestTimerRequested: presentRestTimer
-                            )
-                                .environment(router)
-
-                        case .workout:
-                            WorkoutLibraryView(
-                                onWorkoutCompleted: { summary in
-                                    navigationCoordinator.handleWorkoutCompleted(
-                                        sessionID: summary.id
-                                    )
-                                    presentCompletionSummary(summary)
-                                },
-                                onWorkoutManuallyFinished: handleManualWorkoutFinished,
-                                onRestTimerRequested: presentRestTimer
-                            )
-
-                        case .history:
-                            WorkoutHistoryView()
-
-                        case .profile:
-                            Text("Profile")
-
-                        case .progress:
-                            Text("Progress")
-
-                        case .settings:
-                            Text("Settings")
-                        }
-                    }
-
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(MainTab.home)
-        }
-        .onChange(of: selectedTab) { previousTab, currentTab in
+        mainContent
+            .onChange(of: selectedTab) { previousTab, currentTab in
             WorkoutLifecycleLog.event(
                 "MainTabView.selectedTabChanged",
                 [
@@ -177,6 +121,69 @@ struct MainTabView: View {
             }
         }
         .animation(AppStyle.animation, value: workoutSavedBanner)
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        #if os(macOS)
+        homeNavigationStack
+        #else
+        TabView(selection: $selectedTab) {
+            homeNavigationStack
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+                .tag(MainTab.home)
+        }
+        #endif
+    }
+
+    private var homeNavigationStack: some View {
+        NavigationStack(path: $router.path) {
+            HomeView(
+                viewModel: homeViewModel,
+                onWorkoutCompleted: presentCompletionSummary,
+                onWorkoutManuallyFinished: handleManualWorkoutFinished,
+                onRestTimerRequested: presentRestTimer
+            )
+            .environment(router)
+            .navigationDestination(for: AppDestination.self) { destination in
+                switch destination {
+                case .home:
+                    HomeView(
+                        viewModel: homeViewModel,
+                        onWorkoutCompleted: presentCompletionSummary,
+                        onWorkoutManuallyFinished: handleManualWorkoutFinished,
+                        onRestTimerRequested: presentRestTimer
+                    )
+                    .environment(router)
+
+                case .workout:
+                    WorkoutLibraryView(
+                        onWorkoutCompleted: { summary in
+                            navigationCoordinator.handleWorkoutCompleted(
+                                sessionID: summary.id
+                            )
+                            presentCompletionSummary(summary)
+                        },
+                        onWorkoutManuallyFinished: handleManualWorkoutFinished,
+                        onRestTimerRequested: presentRestTimer
+                    )
+
+                case .history:
+                    WorkoutHistoryView()
+
+                case .profile:
+                    Text("Profile")
+
+                case .progress:
+                    Text("Progress")
+
+                case .settings:
+                    Text("Settings")
+                }
+            }
+        }
     }
 
     private func presentCompletionSummary(_ summary: WorkoutCompletionSummary) {

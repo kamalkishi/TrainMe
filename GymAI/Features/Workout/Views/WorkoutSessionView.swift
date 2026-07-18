@@ -61,16 +61,11 @@ struct WorkoutSessionView: View {
             ] + WorkoutLifecycleLog.activeWorkout(viewModel.activeWorkout)
         )
 
-        VStack(spacing: Spacing.xl) {
+        VStack(spacing: Spacing.lg) {
 
             Text(viewModel.workout.name)
                 .font(AppFont.largeTitle)
-
-            Text(
-                "workout.exercise_progress \(viewModel.currentExerciseNumber) \(viewModel.totalExercises)"
-            )
-            .font(AppFont.headline)
-            .foregroundStyle(AppColor.textSecondary)
+                .multilineTextAlignment(.center)
 
             if let exercise = viewModel.currentExercise {
 
@@ -90,7 +85,7 @@ struct WorkoutSessionView: View {
                     .foregroundStyle(AppColor.textSecondary)
             }
 
-            Spacer(minLength: Spacing.lg)
+            Spacer(minLength: Spacing.md)
             
             PrimaryButton(
                 title: "workout.complete_set"
@@ -122,10 +117,11 @@ struct WorkoutSessionView: View {
                     viewModel.previousExercise()
                 } label: {
                     Label("common.previous", systemImage: "chevron.left")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.xs)
                 }
+                .buttonStyle(.bordered)
                 .disabled(viewModel.isFirstExercise)
-
-                Spacer()
 
                 Button {
                     WorkoutLifecycleLog.event(
@@ -138,13 +134,14 @@ struct WorkoutSessionView: View {
                     viewModel.nextExercise()
                 } label: {
                     Label("common.next", systemImage: "chevron.right")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.xs)
                 }
+                .buttonStyle(.bordered)
                 .disabled(viewModel.isLastExercise)
             }
 
-            PrimaryButton(
-                title: "workout.finish"
-            ) {
+            Button {
                 WorkoutLifecycleLog.event(
                     "WorkoutSessionView.finishTapped",
                     [
@@ -155,11 +152,23 @@ struct WorkoutSessionView: View {
                 if let summary = viewModel.finishWorkout() {
                     notifyManualFinish(summary)
                 }
+            } label: {
+                Label("workout.finish", systemImage: "checkmark.circle")
+                    .font(AppFont.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.xs)
             }
+            .buttonStyle(.bordered)
+            .tint(AppColor.secondary)
             .disabled(viewModel.isWorkoutCompleted || didNotifyManualFinish)
         }
         .padding(AppStyle.screenPadding)
         .navigationTitle("workout.title")
+        #if os(iOS) || os(visionOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #elseif os(macOS)
+        .toolbar(removing: .title)
+        #endif
         .onAppear {
             WorkoutLifecycleLog.event(
                 "WorkoutSessionView.onAppear",
