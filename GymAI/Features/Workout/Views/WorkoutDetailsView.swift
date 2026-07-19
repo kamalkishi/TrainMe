@@ -79,6 +79,65 @@ struct WorkoutDetailsView: View {
             .padding(AppStyle.screenPadding)
         }
         .navigationTitle(workout.name)
+        .alert(
+            "workout.switch.confirm_title",
+            isPresented: isShowingWorkoutSwitchConflict,
+            presenting: viewModel.workoutSwitchConflict
+        ) { conflict in
+            Button(role: .cancel) {
+                viewModel.cancelWorkoutSwitchConflict()
+            } label: {
+                Text("common.cancel")
+            }
+
+            Button {
+                viewModel.continueActiveWorkoutFromConflict()
+            } label: {
+                Text(
+                    String(
+                        format: NSLocalizedString(
+                            "workout.switch.continue_action %@",
+                            comment: "Continue the active workout from the switch confirmation."
+                        ),
+                        conflict.activeSession.workout.name
+                    )
+                )
+            }
+
+            Button(role: .destructive) {
+                viewModel.saveAndSwitchFromConflict()
+            } label: {
+                Text(
+                    String(
+                        format: NSLocalizedString(
+                            "workout.switch.save_and_start_action %@",
+                            comment: "Save the active workout and start the selected workout."
+                        ),
+                        conflict.selectedWorkout.name
+                    )
+                )
+            }
+        } message: { conflict in
+            Text(
+                String(
+                    format: NSLocalizedString(
+                        "workout.switch.confirm_message %@ %@",
+                        comment: "Workout switch confirmation message with active and selected workout names."
+                    ),
+                    conflict.activeSession.workout.name,
+                    conflict.selectedWorkout.name
+                )
+            )
+        }
+        .alert(
+            "workout.switch.failure_title",
+            isPresented: isShowingWorkoutSwitchFailure,
+            presenting: viewModel.workoutSwitchFailure
+        ) { _ in
+            Button("common.ok", role: .cancel) {}
+        } message: { failure in
+            Text(failure.messageKey)
+        }
         .navigationDestination(item: $viewModel.sessionToContinue) { session in
             let _ = WorkoutLifecycleLog.event(
                 "WorkoutDetailsView.navigationDestination.resumeSession",
@@ -112,6 +171,40 @@ struct WorkoutDetailsView: View {
                 .id(destination.id)
         }
         //.navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var isShowingWorkoutSwitchConflict: Binding<Bool> {
+        Binding {
+            viewModel.workoutSwitchConflict != nil
+        } set: { isPresented in
+            if !isPresented {
+                viewModel.cancelWorkoutSwitchConflict()
+            }
+        }
+    }
+
+    private var isShowingWorkoutSwitchFailure: Binding<Bool> {
+        Binding {
+            viewModel.workoutSwitchFailure != nil
+        } set: { isPresented in
+            if !isPresented {
+                viewModel.workoutSwitchFailure = nil
+            }
+        }
+    }
+}
+
+private extension WorkoutSwitchFailure {
+
+    var messageKey: LocalizedStringKey {
+        switch self {
+        case .saveFailed:
+            "workout.switch.save_failure_message"
+        case .cleanupFailed:
+            "workout.switch.cleanup_failure_message"
+        case .startFailed:
+            "workout.switch.start_failure_message"
+        }
     }
 }
 

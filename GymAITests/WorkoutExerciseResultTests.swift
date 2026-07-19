@@ -308,11 +308,13 @@ private final class ExerciseResultRepositorySpy: WorkoutRepositoryProtocol {
     private(set) var clearActiveSessionCallCount = 0
     private(set) var abandonActiveSessionCallCount = 0
 
-    func startSession(for workout: Workout) {
+    @discardableResult
+    func startSession(for workout: Workout) -> WorkoutSession? {
         startSessionCallCount += 1
         var session = WorkoutSession(workout: workout)
         session.exerciseResults = ActiveWorkout(workout: workout).exerciseResults
         sessionToFetch = session
+        return session
     }
 
     func fetchActiveSession() -> WorkoutSession? {

@@ -8,7 +8,18 @@ import Foundation
 import SwiftData
 
 @MainActor
-final class WorkoutPersistence {
+protocol WorkoutPersistenceProtocol {
+    func startWorkout(_ session: WorkoutSession) throws -> WorkoutSessionEntity
+    func loadActiveSession() throws -> WorkoutSession?
+    func saveSession(_ session: WorkoutSession, sessionID: UUID) throws
+    func deleteIncompleteSessions() throws
+    func deleteSession(sessionID: UUID) throws
+    func completeSession(sessionID: UUID) throws -> WorkoutSessionRecord
+    func fetchWorkoutHistory() throws -> [WorkoutSessionRecord]
+}
+
+@MainActor
+final class WorkoutPersistence: WorkoutPersistenceProtocol {
 
     enum PersistenceError: Error {
         case sessionNotFound(UUID)

@@ -8,6 +8,42 @@ import Testing
 struct WorkoutRepositoryTests {
 
     @Test
+    func startSessionReturnsPersistedActiveSessionAfterSuccess() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        let workout = WorkoutMapperTests.makeWorkout(name: "Started")
+
+        let startedSession = try #require(repository.startSession(for: workout))
+        let fetchedSession = try #require(repository.fetchActiveSession())
+        let persistedSession = try #require(try persistence.loadActiveSession())
+
+        #expect(startedSession.id == fetchedSession.id)
+        #expect(startedSession.id == persistedSession.id)
+        #expect(startedSession.workout.id == workout.id)
+        #expect(fetchedSession.workout.id == workout.id)
+        #expect(repository.lastError == nil)
+    }
+
+    @Test
+    func startSessionPersistenceFailureReturnsNilAndLeavesNoActiveSession() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: FailingStartWorkoutPersistence(realPersistence: persistence))
+        let workout = WorkoutMapperTests.makeWorkout(name: "Failed Start")
+
+        let startedSession = repository.startSession(for: workout)
+
+        #expect(startedSession == nil)
+        #expect(repository.lastError != nil)
+        #expect(repository.fetchActiveSession() == nil)
+        #expect(repository.activeSession == nil)
+        #expect(try persistence.loadActiveSession() == nil)
+    }
+
+    @Test
     func repositoryPersistsProgressWithoutSharedSingletonState() throws {
         let container = try Self.makeContainer()
         let repository = WorkoutRepository()
@@ -368,5 +404,47 @@ struct WorkoutRepositoryTests {
         session.elapsedTime = completedAt.timeIntervalSince(session.startedAt)
         try persistence.saveSession(session, sessionID: session.id)
         _ = try persistence.completeSession(sessionID: session.id)
+    }
+}
+
+@MainActor
+private final class FailingStartWorkoutPersistence: WorkoutPersistenceProtocol {
+
+    enum Failure: Error {
+        case startFailed
+    }
+
+    private let realPersistence: WorkoutPersistence
+
+    init(realPersistence: WorkoutPersistence) {
+        self.realPersistence = realPersistence
+    }
+
+    func startWorkout(_ session: WorkoutSession) throws -> WorkoutSessionEntity {
+        throw Failure.startFailed
+    }
+
+    func loadActiveSession() throws -> WorkoutSession? {
+        try realPersistence.loadActiveSession()
+    }
+
+    func saveSession(_ session: WorkoutSession, sessionID: UUID) throws {
+        try realPersistence.saveSession(session, sessionID: sessionID)
+    }
+
+    func deleteIncompleteSessions() throws {
+        try realPersistence.deleteIncompleteSessions()
+    }
+
+    func deleteSession(sessionID: UUID) throws {
+        try realPersistence.deleteSession(sessionID: sessionID)
+    }
+
+    func completeSession(sessionID: UUID) throws -> WorkoutSessionRecord {
+        try realPersistence.completeSession(sessionID: sessionID)
+    }
+
+    func fetchWorkoutHistory() throws -> [WorkoutSessionRecord] {
+        try realPersistence.fetchWorkoutHistory()
     }
 }

@@ -4,7 +4,8 @@ protocol WorkoutRepositoryProtocol {
 
     // MARK: - Active Session
 
-    func startSession(for workout: Workout)
+    @discardableResult
+    func startSession(for workout: Workout) -> WorkoutSession?
 
     func fetchActiveSession() -> WorkoutSession?
 

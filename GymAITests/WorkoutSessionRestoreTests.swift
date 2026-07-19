@@ -534,17 +534,307 @@ struct WorkoutSessionRestoreTests {
     }
 
     @Test
-    func workoutDetailsDefensiveFallbackPreventsDuplicateSessionCreation() {
+    func workoutDetailsDefensiveFallbackPreventsDuplicateSessionCreation() throws {
         let repository = SpyWorkoutRepository()
         let session = WorkoutSession(workout: WorkoutMapperTests.makeWorkout())
         let viewModel = WorkoutDetailsViewModel(repository: repository)
 
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Fresh")
         repository.sessionToFetch = session
-        viewModel.startWorkout(WorkoutMapperTests.makeWorkout(name: "Fresh"))
+        viewModel.startWorkout(selectedWorkout)
 
         #expect(viewModel.freshWorkoutDestination == nil)
-        #expect(viewModel.sessionToContinue?.id == session.id)
+        #expect(viewModel.sessionToContinue == nil)
+        let conflict = try #require(viewModel.workoutSwitchConflict)
+        #expect(conflict.activeSession.id == session.id)
+        #expect(conflict.selectedWorkout.id == selectedWorkout.id)
         #expect(repository.startSessionCallCount == 0)
+    }
+
+    @Test
+    func workoutDetailsStartsSelectedWorkoutWhenNoActiveSessionExists() throws {
+        let repository = SpyWorkoutRepository()
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+
+        viewModel.startWorkout(selectedWorkout)
+
+        let destination = try #require(viewModel.freshWorkoutDestination)
+        #expect(destination.session.workout == selectedWorkout)
+        #expect(viewModel.sessionToContinue == nil)
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(repository.startSessionCallCount == 1)
+    }
+
+    @Test
+    func workoutDetailsResumesSameWorkoutActiveSessionWithoutConflict() throws {
+        let repository = SpyWorkoutRepository()
+        let workoutID = UUID()
+        let workout = WorkoutMapperTests.makeWorkout(id: workoutID, name: "Same Workout")
+        let activeSession = WorkoutSession(workout: workout)
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+        repository.sessionToFetch = activeSession
+
+        viewModel.startWorkout(WorkoutMapperTests.makeWorkout(id: workoutID, name: "Same Workout"))
+
+        let sessionToContinue = try #require(viewModel.sessionToContinue)
+        #expect(sessionToContinue.id == activeSession.id)
+        #expect(viewModel.freshWorkoutDestination == nil)
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(repository.startSessionCallCount == 0)
+    }
+
+    @Test
+    func workoutDetailsDifferentActiveWorkoutCreatesConflictWithoutNavigation() throws {
+        let repository = SpyWorkoutRepository()
+        let activeSession = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: "Active"))
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+        repository.sessionToFetch = activeSession
+
+        viewModel.startWorkout(selectedWorkout)
+
+        let conflict = try #require(viewModel.workoutSwitchConflict)
+        #expect(conflict.activeSession.id == activeSession.id)
+        #expect(conflict.selectedWorkout.id == selectedWorkout.id)
+        #expect(viewModel.sessionToContinue == nil)
+        #expect(viewModel.freshWorkoutDestination == nil)
+        #expect(repository.startSessionCallCount == 0)
+    }
+
+    @Test
+    func cancellingWorkoutSwitchPreservesActiveSession() {
+        let repository = SpyWorkoutRepository()
+        let activeSession = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: "Active"))
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+        repository.sessionToFetch = activeSession
+        viewModel.startWorkout(selectedWorkout)
+
+        viewModel.cancelWorkoutSwitchConflict()
+
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(viewModel.sessionToContinue == nil)
+        #expect(viewModel.freshWorkoutDestination == nil)
+        #expect(repository.fetchActiveSession()?.id == activeSession.id)
+        #expect(repository.startSessionCallCount == 0)
+    }
+
+    @Test
+    func continuingWorkoutSwitchConflictOpensOriginalSessionUnchanged() throws {
+        let repository = SpyWorkoutRepository()
+        let activeSession = WorkoutSession(
+            workout: WorkoutMapperTests.makeWorkout(name: "Active"),
+            currentExerciseIndex: 1,
+            currentSet: 2,
+            completedReps: 42,
+            elapsedTime: 300
+        )
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+        repository.sessionToFetch = activeSession
+        viewModel.startWorkout(selectedWorkout)
+
+        viewModel.continueActiveWorkoutFromConflict()
+
+        let sessionToContinue = try #require(viewModel.sessionToContinue)
+        #expect(sessionToContinue.id == activeSession.id)
+        #expect(sessionToContinue.workout.name == "Active")
+        #expect(sessionToContinue.currentExerciseIndex == 1)
+        #expect(sessionToContinue.currentSet == 2)
+        #expect(sessionToContinue.completedReps == 42)
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(repository.startSessionCallCount == 0)
+    }
+
+    @Test
+    func saveAndSwitchSavesProgressedActiveWorkoutBeforeStartingSelectedWorkout() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        let activeWorkout = WorkoutMapperTests.makeWorkout(name: "Active")
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        repository.startSession(for: activeWorkout)
+        var activeSession = try #require(repository.fetchActiveSession())
+        activeSession.startedAt = Date(timeIntervalSinceNow: -900)
+        repository.updateSession(activeSession)
+        let activeViewModel = ActiveWorkoutViewModel(session: activeSession, repository: repository)
+
+        for _ in 0..<4 {
+            activeViewModel.completeSet()
+        }
+
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+        viewModel.startWorkout(selectedWorkout)
+        viewModel.saveAndSwitchFromConflict()
+
+        let history = repository.fetchWorkoutHistory()
+        let newSession = try #require(repository.fetchActiveSession())
+        #expect(history.count == 1)
+        #expect(history.first?.id == activeSession.id)
+        #expect(history.first?.workoutName == "Active")
+        #expect(newSession.workout.id == selectedWorkout.id)
+        #expect(newSession.id != activeSession.id)
+        #expect(viewModel.freshWorkoutDestination?.session.id == newSession.id)
+    }
+
+    @Test
+    func saveAndSwitchHistoryPreservesPartialExerciseResults() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        let activeWorkout = WorkoutMapperTests.makeWorkout(name: "Active")
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        repository.startSession(for: activeWorkout)
+        let activeSession = try #require(repository.fetchActiveSession())
+        let activeViewModel = ActiveWorkoutViewModel(session: activeSession, repository: repository)
+
+        for _ in 0..<4 {
+            activeViewModel.completeSet()
+        }
+
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+        viewModel.startWorkout(selectedWorkout)
+        viewModel.saveAndSwitchFromConflict()
+
+        let history = try #require(repository.fetchWorkoutHistory().first)
+        #expect(history.exerciseResults.count == 2)
+        #expect(history.exerciseResults[0].completedSets == 3)
+        #expect(history.exerciseResults[0].completedReps == 36)
+        #expect(history.exerciseResults[1].completedSets == 1)
+        #expect(history.exerciseResults[1].completedReps == 10)
+    }
+
+    @Test
+    func saveAndSwitchCleansEmptyActiveWorkoutWithoutHistoryBeforeStartingSelectedWorkout() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        let persistence = WorkoutPersistence(modelContext: ModelContext(container))
+        repository.configure(with: persistence)
+        let activeWorkout = WorkoutMapperTests.makeWorkout(name: "Empty Active")
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        repository.startSession(for: activeWorkout)
+        let activeSession = try #require(repository.fetchActiveSession())
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+
+        viewModel.startWorkout(selectedWorkout)
+        viewModel.saveAndSwitchFromConflict()
+
+        let newSession = try #require(repository.fetchActiveSession())
+        #expect(activeSession.id != newSession.id)
+        #expect(newSession.workout.id == selectedWorkout.id)
+        #expect(repository.fetchWorkoutHistory().isEmpty)
+    }
+
+    @Test
+    func saveAndSwitchSaveFailureDoesNotStartSelectedWorkout() {
+        let repository = SpyWorkoutRepository()
+        repository.shouldSaveHistorySucceed = false
+        var activeSession = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: "Active"))
+        activeSession.currentSet = 2
+        activeSession.completedReps = 12
+        repository.sessionToFetch = activeSession
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+
+        viewModel.startWorkout(selectedWorkout)
+        viewModel.saveAndSwitchFromConflict()
+
+        #expect(viewModel.freshWorkoutDestination == nil)
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(viewModel.workoutSwitchFailure == .saveFailed)
+        #expect(repository.fetchActiveSession()?.id == activeSession.id)
+        #expect(repository.startSessionCallCount == 0)
+        #expect(repository.saveCallCount == 1)
+
+        viewModel.startWorkout(selectedWorkout)
+
+        #expect(viewModel.workoutSwitchFailure == nil)
+        #expect(viewModel.workoutSwitchConflict?.activeSession.id == activeSession.id)
+        #expect(viewModel.workoutSwitchConflict?.selectedWorkout.id == selectedWorkout.id)
+    }
+
+    @Test
+    func saveAndSwitchCleanupFailureDoesNotStartSelectedWorkout() {
+        let repository = SpyWorkoutRepository()
+        repository.shouldClearActiveSessionSucceed = false
+        let activeSession = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: "Empty Active"))
+        repository.sessionToFetch = activeSession
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+
+        viewModel.startWorkout(selectedWorkout)
+        viewModel.saveAndSwitchFromConflict()
+
+        #expect(viewModel.freshWorkoutDestination == nil)
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(viewModel.workoutSwitchFailure == .cleanupFailed)
+        #expect(repository.fetchActiveSession()?.id == activeSession.id)
+        #expect(repository.startSessionCallCount == 0)
+        #expect(repository.clearActiveSessionCallCount == 1)
+
+        viewModel.startWorkout(selectedWorkout)
+
+        #expect(viewModel.workoutSwitchFailure == nil)
+        #expect(viewModel.workoutSwitchConflict?.activeSession.id == activeSession.id)
+        #expect(viewModel.workoutSwitchConflict?.selectedWorkout.id == selectedWorkout.id)
+    }
+
+    @Test
+    func saveAndSwitchStartFailureDoesNotNavigateAndCanRetryWithoutDuplicateHistory() throws {
+        let repository = SpyWorkoutRepository()
+        var activeSession = WorkoutSession(workout: WorkoutMapperTests.makeWorkout(name: "Active"))
+        activeSession.currentSet = 2
+        activeSession.completedReps = 12
+        repository.sessionToFetch = activeSession
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+
+        viewModel.startWorkout(selectedWorkout)
+        repository.shouldStartSessionSucceed = false
+        viewModel.saveAndSwitchFromConflict()
+
+        #expect(viewModel.freshWorkoutDestination == nil)
+        #expect(viewModel.workoutSwitchConflict == nil)
+        #expect(viewModel.workoutSwitchFailure == .startFailed)
+        #expect(repository.fetchActiveSession() == nil)
+        #expect(repository.history.count == 1)
+        #expect(repository.history.first?.id == activeSession.id)
+
+        repository.shouldStartSessionSucceed = true
+        viewModel.startWorkout(selectedWorkout)
+
+        let destination = try #require(viewModel.freshWorkoutDestination)
+        #expect(destination.session.workout.id == selectedWorkout.id)
+        #expect(repository.history.count == 1)
+        #expect(repository.history.first?.id == activeSession.id)
+    }
+
+    @Test
+    func repeatedSaveAndSwitchDoesNotDuplicateHistoryOrActiveSessions() throws {
+        let container = try Self.makeContainer()
+        let repository = WorkoutRepository()
+        repository.configure(with: WorkoutPersistence(modelContext: ModelContext(container)))
+        let activeWorkout = WorkoutMapperTests.makeWorkout(name: "Active")
+        let selectedWorkout = WorkoutMapperTests.makeWorkout(name: "Selected")
+        repository.startSession(for: activeWorkout)
+        let activeSession = try #require(repository.fetchActiveSession())
+        let activeViewModel = ActiveWorkoutViewModel(session: activeSession, repository: repository)
+        activeViewModel.completeSet()
+        let viewModel = WorkoutDetailsViewModel(repository: repository)
+
+        viewModel.startWorkout(selectedWorkout)
+        viewModel.saveAndSwitchFromConflict()
+        viewModel.saveAndSwitchFromConflict()
+
+        let history = repository.fetchWorkoutHistory()
+        let activeAfterSwitch = try #require(repository.fetchActiveSession())
+        #expect(history.count == 1)
+        #expect(history.first?.id == activeSession.id)
+        #expect(activeAfterSwitch.workout.id == selectedWorkout.id)
+        #expect(viewModel.workoutSwitchConflict == nil)
     }
 
     @Test
@@ -1023,20 +1313,31 @@ private final class SpyWorkoutRepository: WorkoutRepositoryProtocol {
     var updatedSession: WorkoutSession?
     var history: [WorkoutSessionRecord] = []
     var shouldAbandonActiveSessionSucceed = true
+    var shouldClearActiveSessionSucceed = true
+    var shouldSaveHistorySucceed = true
+    var shouldStartSessionSucceed = true
 
     private(set) var startSessionCallCount = 0
     private(set) var updateSessionCallCount = 0
+    private(set) var saveCallCount = 0
     private(set) var clearActiveSessionCallCount = 0
     private(set) var abandonActiveSessionCallCount = 0
 
-    func startSession(for workout: Workout) {
+    @discardableResult
+    func startSession(for workout: Workout) -> WorkoutSession? {
         startSessionCallCount += 1
 
         guard sessionToFetch == nil else {
-            return
+            return nil
         }
 
-        sessionToFetch = WorkoutSession(workout: workout)
+        guard shouldStartSessionSucceed else {
+            return nil
+        }
+
+        let session = WorkoutSession(workout: workout)
+        sessionToFetch = session
+        return session
     }
 
     func fetchActiveSession() -> WorkoutSession? {
@@ -1046,6 +1347,7 @@ private final class SpyWorkoutRepository: WorkoutRepositoryProtocol {
     func updateSession(_ session: WorkoutSession) {
         updateSessionCallCount += 1
         updatedSession = session
+        sessionToFetch = session
     }
 
     func clearActiveSession() {
@@ -1055,6 +1357,10 @@ private final class SpyWorkoutRepository: WorkoutRepositoryProtocol {
 
     func clearActiveSession(ifSessionID sessionID: UUID) -> Bool {
         clearActiveSessionCallCount += 1
+
+        guard shouldClearActiveSessionSucceed else {
+            return false
+        }
 
         guard sessionToFetch?.id == sessionID else {
             return false
@@ -1079,6 +1385,16 @@ private final class SpyWorkoutRepository: WorkoutRepositoryProtocol {
     }
 
     func save(_ workout: WorkoutSessionRecord) {
+        saveCallCount += 1
+
+        guard shouldSaveHistorySucceed else {
+            return
+        }
+
         history.insert(workout, at: 0)
+
+        if sessionToFetch?.id == workout.id {
+            sessionToFetch = nil
+        }
     }
 }

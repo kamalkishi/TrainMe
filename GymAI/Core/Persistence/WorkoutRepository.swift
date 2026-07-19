@@ -118,7 +118,7 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
 
     init() {}
     
-    private var persistence: WorkoutPersistence?
+    private var persistence: WorkoutPersistenceProtocol?
     
     private var activeSessionID: UUID?
 
@@ -132,7 +132,7 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
         case missingActiveSessionID
     }
     
-    func configure(with persistence: WorkoutPersistence) {
+    func configure(with persistence: WorkoutPersistenceProtocol) {
         guard self.persistence == nil else {
             WorkoutLifecycleLog.event(
                 "Repository.configure.skipped",
@@ -156,7 +156,8 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
 
     // MARK: - Active Session
 
-    func startSession(for workout: Workout) {
+    @discardableResult
+    func startSession(for workout: Workout) -> WorkoutSession? {
 
         WorkoutLifecycleLog.event(
             "Repository.startSession.begin",
@@ -177,25 +178,15 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
                     activeSessionID: activeSessionID
                 )
             )
-            return
+            return nil
         }
 
         var session = WorkoutSession(workout: workout)
         session.exerciseResults = ActiveWorkout(workout: workout).exerciseResults
 
-        activeSession = session
-        activeSessionID = session.id
-
-        WorkoutLifecycleLog.event(
-            "Repository.startSession.memorySet",
-            WorkoutLifecycleLog.session(session)
-            + WorkoutLifecycleLog.repositoryState(
-                activeSession: activeSession,
-                activeSessionID: activeSessionID
-            )
-        )
-
         guard let persistence else {
+            activeSession = session
+            activeSessionID = session.id
             WorkoutLifecycleLog.event(
                 "Repository.startSession.noPersistence",
                 WorkoutLifecycleLog.repositoryState(
@@ -203,12 +194,13 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
                     activeSessionID: activeSessionID
                 )
             )
-            return
+            return session
         }
 
         do {
             let entity = try persistence.startWorkout(session)
 
+            activeSession = session
             activeSessionID = entity.id
             lastError = nil
 
@@ -220,6 +212,7 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
                     activeSessionID: activeSessionID
                 )
             )
+            return session
 
         } catch {
 
@@ -233,6 +226,7 @@ final class WorkoutRepository: WorkoutRepositoryProtocol {
                     activeSessionID: activeSessionID
                 )
             )
+            return nil
         }
     }
 
