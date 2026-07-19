@@ -37,7 +37,7 @@ struct WorkoutLibraryView: View {
             .buttonStyle(.plain)
         }
         .listStyle(.plain)
-        .navigationTitle("Workouts")
+        .navigationTitle("home.browse_workouts.label")
         .navigationDestination(item: $selectedWorkout) { workout in
 
             WorkoutDetailsView(

@@ -63,11 +63,6 @@ struct WorkoutSessionView: View {
         )
 
         VStack(spacing: Spacing.lg) {
-
-            Text(viewModel.workout.name)
-                .font(AppFont.largeTitle)
-                .multilineTextAlignment(.center)
-
             if let exercise = viewModel.currentExercise {
 
                 WorkoutProgressCard(
@@ -142,7 +137,7 @@ struct WorkoutSessionView: View {
                 .disabled(viewModel.isLastExercise)
             }
 
-            Button {
+            Button(role: .destructive) {
                 WorkoutLifecycleLog.event(
                     "WorkoutSessionView.finishTapped",
                     [
@@ -158,7 +153,8 @@ struct WorkoutSessionView: View {
                     .padding(.vertical, Spacing.xs)
             }
             .buttonStyle(.bordered)
-            .tint(AppColor.secondary)
+            .tint(.red)
+            .foregroundStyle(.red)
             .disabled(viewModel.isWorkoutCompleted || didNotifyManualFinish)
         }
         .alert("workout.finish.confirm_title", isPresented: $isConfirmingFinishWorkout) {
@@ -171,11 +167,9 @@ struct WorkoutSessionView: View {
             Text("workout.finish.confirm_message")
         }
         .padding(AppStyle.screenPadding)
-        .navigationTitle("workout.title")
+        .navigationTitle(viewModel.workout.name)
         #if os(iOS) || os(visionOS)
         .navigationBarTitleDisplayMode(.inline)
-        #elseif os(macOS)
-        .toolbar(removing: .title)
         #endif
         .onAppear {
             WorkoutLifecycleLog.event(

@@ -6,7 +6,9 @@ import Observation
 final class HomeViewModel {
 
     private let repository: WorkoutRepositoryProtocol
+    private let completionLifecycle: WorkoutCompletionLifecycle
     private let diagnosticID = UUID()
+    private var isResolvingWorkoutChoice = false
 
     private(set) var activeSession: WorkoutSession?
 
@@ -15,12 +17,15 @@ final class HomeViewModel {
     var shouldOpenWorkoutLibrary = false
 
     init() {
-        self.repository = WorkoutRepository.shared
+        let repository = WorkoutRepository.shared
+        self.repository = repository
+        self.completionLifecycle = WorkoutCompletionLifecycle(repository: repository)
         WorkoutLifecycleLog.event("HomeViewModel.init", diagnosticFields)
     }
 
     init(repository: WorkoutRepositoryProtocol) {
         self.repository = repository
+        self.completionLifecycle = WorkoutCompletionLifecycle(repository: repository)
         WorkoutLifecycleLog.event("HomeViewModel.initInjected", diagnosticFields)
     }
 
@@ -123,6 +128,52 @@ final class HomeViewModel {
     }
 
     @discardableResult
+    func saveActiveSessionAndOpenWorkoutLibrary() -> Bool {
+        guard !isResolvingWorkoutChoice else {
+            WorkoutLifecycleLog.event("HomeViewModel.saveAndChooseAnother.ignoredAlreadyResolving", diagnosticFields)
+            return false
+        }
+
+        loadActiveSession()
+
+        guard let session = activeSession else {
+            WorkoutLifecycleLog.event("HomeViewModel.saveAndChooseAnother.noActiveSession", diagnosticFields)
+            shouldOpenWorkoutLibrary = true
+            return true
+        }
+
+        isResolvingWorkoutChoice = true
+        defer {
+            isResolvingWorkoutChoice = false
+        }
+
+        let succeeded: Bool
+        if hasMeaningfulProgress(session) {
+            succeeded = completionLifecycle.finishActiveSession(session) != nil
+        } else {
+            succeeded = repository.clearActiveSession(ifSessionID: session.id)
+        }
+
+        guard succeeded, repository.fetchActiveSession() == nil else {
+            WorkoutLifecycleLog.event(
+                "HomeViewModel.saveAndChooseAnother.failed",
+                diagnosticFields + WorkoutLifecycleLog.session(session, label: "home.activeSession")
+            )
+            loadActiveSession()
+            return false
+        }
+
+        activeSession = nil
+        sessionToContinue = nil
+        shouldOpenWorkoutLibrary = true
+        WorkoutLifecycleLog.event(
+            "HomeViewModel.saveAndChooseAnother.succeeded",
+            diagnosticFields + WorkoutLifecycleLog.session(session, label: "savedSession")
+        )
+        return true
+    }
+
+    @discardableResult
     func abandonActiveSession() -> Bool {
         WorkoutLifecycleLog.event(
             "HomeViewModel.abandonActiveSession.begin",
@@ -145,6 +196,15 @@ final class HomeViewModel {
             + WorkoutLifecycleLog.session(sessionToContinue, label: "home.sessionToContinue")
         )
         return abandoned
+    }
+
+    private func hasMeaningfulProgress(_ session: WorkoutSession) -> Bool {
+        session.currentExerciseIndex > 0
+        || session.currentSet > 1
+        || session.completedExercises > 0
+        || session.completedReps > 0
+        || session.elapsedTime > 0
+        || session.completed
     }
 
     private var diagnosticFields: [String] {

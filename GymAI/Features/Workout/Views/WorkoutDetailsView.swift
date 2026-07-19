@@ -30,23 +30,17 @@ struct WorkoutDetailsView: View {
         ScrollView {
 
             VStack(alignment: .leading,
-                   spacing: Spacing.xl) {
-
-                Text(workout.name)
-                    .font(AppFont.largeTitle)
+                   spacing: Spacing.lg) {
 
                 Text(workout.description)
                     .font(AppFont.body)
                     .foregroundStyle(AppColor.textSecondary)
 
-                Label(
-                    "\(Int(workout.estimatedDuration / 60)) minutes",
-                    systemImage: "clock"
-                )
+                workoutSummary
 
                 Divider()
 
-                Text("Exercises")
+                Text("workout.details.exercises_title")
                     .font(AppFont.headline)
 
                 if workout.exercises.isEmpty {
@@ -79,6 +73,9 @@ struct WorkoutDetailsView: View {
             .padding(AppStyle.screenPadding)
         }
         .navigationTitle(workout.name)
+        #if os(iOS) || os(visionOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .alert(
             "workout.switch.confirm_title",
             isPresented: isShowingWorkoutSwitchConflict,
@@ -171,6 +168,86 @@ struct WorkoutDetailsView: View {
                 .id(destination.id)
         }
         //.navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var workoutSummary: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            summaryItem(
+                title: "workout.details.summary.type",
+                value: workoutTypeTitle,
+                systemImage: "dumbbell"
+            )
+
+            summaryItem(
+                title: "workout.details.summary.exercise_count",
+                value: formattedExerciseCount,
+                systemImage: "list.bullet"
+            )
+
+            summaryItem(
+                title: "workout.details.summary.estimated_duration",
+                value: formattedEstimatedDuration,
+                systemImage: "clock"
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func summaryItem(
+        title: LocalizedStringKey,
+        value: String,
+        systemImage: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Label(title, systemImage: systemImage)
+                .font(AppFont.caption)
+                .foregroundStyle(AppColor.textSecondary)
+
+            Text(value)
+                .font(AppFont.headline)
+                .foregroundStyle(AppColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var workoutTypeTitle: String {
+        switch workout.type {
+        case .strength:
+            NSLocalizedString("workout.type.strength", comment: "Strength workout type.")
+        case .hypertrophy:
+            NSLocalizedString("workout.type.hypertrophy", comment: "Hypertrophy workout type.")
+        case .cardio:
+            NSLocalizedString("workout.type.cardio", comment: "Cardio workout type.")
+        case .hiit:
+            NSLocalizedString("workout.type.hiit", comment: "HIIT workout type.")
+        case .mobility:
+            NSLocalizedString("workout.type.mobility", comment: "Mobility workout type.")
+        case .flexibility:
+            NSLocalizedString("workout.type.flexibility", comment: "Flexibility workout type.")
+        case .rehabilitation:
+            NSLocalizedString("workout.type.rehabilitation", comment: "Rehabilitation workout type.")
+        }
+    }
+
+    private var formattedExerciseCount: String {
+        String(
+            format: NSLocalizedString(
+                "workout.details.summary.exercise_count_format %lld",
+                comment: "The number of exercises in a workout."
+            ),
+            workout.exercises.count
+        )
+    }
+
+    private var formattedEstimatedDuration: String {
+        String(
+            format: NSLocalizedString(
+                "%lld minutes",
+                comment: "A workout duration in minutes. The argument is the workout duration in minutes."
+            ),
+            Int(workout.estimatedDuration / 60)
+        )
     }
 
     private var isShowingWorkoutSwitchConflict: Binding<Bool> {

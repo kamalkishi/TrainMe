@@ -2,6 +2,8 @@ import SwiftUI
 
 struct WorkoutProgressCard: View {
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     let currentExercise: Int
     let totalExercises: Int
 
@@ -15,23 +17,28 @@ struct WorkoutProgressCard: View {
 
     var body: some View {
 
-        VStack(alignment: .leading, spacing: Spacing.md) {
+        VStack(alignment: .leading, spacing: contentSpacing) {
 
-            VStack(alignment: .leading, spacing: Spacing.xs) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(formattedExerciseProgress)
-                    .font(AppFont.caption)
-                    .foregroundStyle(AppColor.textSecondary)
+                    .font(AppFont.headline)
+                    .foregroundStyle(AppColor.textPrimary)
 
                 Text(exerciseName)
                     .font(AppFont.title)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Reserved for future Exercise Demo and AI Motion Analysis surfaces.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: reservedDemoHeight)
+
             Divider()
 
             Grid(
                 alignment: .leading,
-                horizontalSpacing: Spacing.sm,
+                horizontalSpacing: metricHorizontalSpacing,
                 verticalSpacing: Spacing.sm
             ) {
                 metricRow(
@@ -53,9 +60,29 @@ struct WorkoutProgressCard: View {
                 )
             }
         }
-        .padding(AppStyle.cardPadding)
+        .padding(cardPadding)
         .background(AppColor.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppStyle.cornerRadius))
+    }
+
+    private var isCompactWidth: Bool {
+        horizontalSizeClass == .compact
+    }
+
+    private var contentSpacing: CGFloat {
+        isCompactWidth ? Spacing.md : Spacing.lg
+    }
+
+    private var reservedDemoHeight: CGFloat {
+        isCompactWidth ? 112 : 180
+    }
+
+    private var metricHorizontalSpacing: CGFloat {
+        isCompactWidth ? Spacing.xs : Spacing.sm
+    }
+
+    private var cardPadding: CGFloat {
+        isCompactWidth ? Spacing.md : AppStyle.cardPadding
     }
 
     private var formattedExerciseProgress: String {
@@ -115,11 +142,14 @@ struct WorkoutProgressCard: View {
                 .font(AppFont.caption)
                 .foregroundStyle(AppColor.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .gridColumnAlignment(.leading)
 
             Text(value)
                 .font(AppFont.body)
                 .foregroundStyle(AppColor.textPrimary)
+                .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }

@@ -6,10 +6,10 @@ struct ContinueWorkoutCard: View {
 
     let session: WorkoutSession
     let onContinue: () -> Void
-    let onStartFreshConfirmed: () -> Bool
+    let onSaveAndChooseAnotherConfirmed: () -> Bool
 
-    @State private var isConfirmingStartFresh = false
-    @State private var isShowingStartFreshFailure = false
+    @State private var isConfirmingWorkoutChoice = false
+    @State private var isShowingWorkoutChoiceFailure = false
 
     var body: some View {
         let _ = WorkoutLifecycleLog.event(
@@ -40,12 +40,12 @@ struct ContinueWorkoutCard: View {
 
             Button(role: .destructive) {
                 WorkoutLifecycleLog.event(
-                    "ContinueWorkoutCard.startFreshTapped",
+                    "ContinueWorkoutCard.chooseAnotherTapped",
                     ["continueWorkoutCard.id=\(diagnosticID)"] + WorkoutLifecycleLog.session(session, label: "card.session")
                 )
-                isConfirmingStartFresh = true
+                isConfirmingWorkoutChoice = true
             } label: {
-                Text("home.start_fresh.button")
+                Text("home.choose_another.button")
                     .font(AppFont.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
@@ -59,37 +59,39 @@ struct ContinueWorkoutCard: View {
                 cornerRadius: AppStyle.cornerRadius
             )
         )
-        .alert("home.start_fresh.confirm_title", isPresented: $isConfirmingStartFresh) {
-            Button("home.continue_workout.button", role: .cancel) {}
+        .alert("home.choose_another.confirm_title", isPresented: $isConfirmingWorkoutChoice) {
+            Button("home.continue_workout.button") {
+                onContinue()
+            }
 
-            Button("home.start_fresh.confirm_button", role: .destructive) {
+            Button("home.choose_another.confirm_button") {
                 WorkoutLifecycleLog.event(
-                    "ContinueWorkoutCard.discardAndStartFreshConfirmed",
+                    "ContinueWorkoutCard.saveAndChooseAnotherConfirmed",
                     ["continueWorkoutCard.id=\(diagnosticID)"] + WorkoutLifecycleLog.session(session, label: "card.session")
                 )
-                if onStartFreshConfirmed() {
+                if onSaveAndChooseAnotherConfirmed() {
                     WorkoutLifecycleLog.event(
-                        "ContinueWorkoutCard.discardAndStartFreshSucceeded",
+                        "ContinueWorkoutCard.saveAndChooseAnotherSucceeded",
                         ["continueWorkoutCard.id=\(diagnosticID)"]
                     )
                     return
                 } else {
                     WorkoutLifecycleLog.event(
-                        "ContinueWorkoutCard.discardAndStartFreshFailed",
+                        "ContinueWorkoutCard.saveAndChooseAnotherFailed",
                         ["continueWorkoutCard.id=\(diagnosticID)"]
                     )
-                    isShowingStartFreshFailure = true
+                    isShowingWorkoutChoiceFailure = true
                 }
             }
 
             Button("common.cancel") {}
         } message: {
-            Text("home.start_fresh.confirm_message")
+            Text("home.choose_another.confirm_message")
         }
-        .alert("home.start_fresh.failure_title", isPresented: $isShowingStartFreshFailure) {
+        .alert("home.choose_another.failure_title", isPresented: $isShowingWorkoutChoiceFailure) {
             Button("common.ok", role: .cancel) {}
         } message: {
-            Text("home.start_fresh.failure_message")
+            Text("home.choose_another.failure_message")
         }
     }
 }
@@ -105,7 +107,7 @@ struct ContinueWorkoutCard: View {
             )
         )
     ) {
-    } onStartFreshConfirmed: {
+    } onSaveAndChooseAnotherConfirmed: {
         true
     }
     .padding()

@@ -141,41 +141,62 @@ struct WorkoutHistoryDetailView: View {
 
     var body: some View {
         List {
+            Section {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(viewModel.workoutName)
+                        .font(AppFont.title)
+                        .foregroundStyle(AppColor.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(viewModel.completedAt)
+                        .font(AppFont.caption)
+                        .foregroundStyle(AppColor.textSecondary)
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+            .listRowSeparator(.hidden)
+
             Section("history.detail.section.summary") {
-                labeledValue(
-                    title: "history.detail.workout",
-                    value: viewModel.workoutName
-                )
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    HStack(alignment: .top, spacing: Spacing.sm) {
+                        summaryMetric(
+                            title: "history.detail.status",
+                            value: viewModel.completionStatus
+                        )
 
-                labeledValue(
-                    title: "history.detail.status",
-                    value: viewModel.completionStatus
-                )
+                        summaryMetric(
+                            title: "history.detail.duration",
+                            value: viewModel.duration
+                        )
+                    }
 
-                labeledValue(
-                    title: "history.detail.started",
-                    value: viewModel.startedAt
-                )
+                    HStack(alignment: .top, spacing: Spacing.sm) {
+                        summaryMetric(
+                            title: "history.detail.exercises_completed",
+                            value: viewModel.exercisesCompleted
+                        )
 
-                labeledValue(
-                    title: "history.detail.completed",
-                    value: viewModel.completedAt
-                )
+                        summaryMetric(
+                            title: "history.detail.total_sets_completed",
+                            value: viewModel.totalSetsCompleted
+                        )
+                    }
 
-                labeledValue(
-                    title: "history.detail.duration",
-                    value: viewModel.duration
-                )
+                    Divider()
 
-                labeledValue(
-                    title: "history.detail.exercises_completed",
-                    value: viewModel.exercisesCompleted
-                )
+                    HStack(alignment: .top, spacing: Spacing.sm) {
+                        summaryMetric(
+                            title: "history.detail.started",
+                            value: viewModel.startedAt
+                        )
 
-                labeledValue(
-                    title: "history.detail.total_sets_completed",
-                    value: viewModel.totalSetsCompleted
-                )
+                        summaryMetric(
+                            title: "history.detail.completed",
+                            value: viewModel.completedAt
+                        )
+                    }
+                }
+                .padding(.vertical, Spacing.xs)
             }
 
             Section("history.detail.section.exercises") {
@@ -205,7 +226,7 @@ struct WorkoutHistoryDetailView: View {
         .navigationTitle("history.detail.title")
     }
 
-    private func labeledValue(title: LocalizedStringKey, value: String) -> some View {
+    private func summaryMetric(title: LocalizedStringKey, value: String) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(title)
                 .font(AppFont.caption)
@@ -213,7 +234,10 @@ struct WorkoutHistoryDetailView: View {
 
             Text(value)
                 .font(AppFont.body)
+                .foregroundStyle(AppColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func exerciseDetail(_ exercise: WorkoutHistoryDetailViewModel.ExerciseDetail) -> some View {
@@ -228,9 +252,12 @@ struct WorkoutHistoryDetailView: View {
                 statusBadge(exercise.status, kind: exercise.statusKind)
             }
 
-            VStack(spacing: Spacing.xs) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
                 exerciseMetric(title: "history.detail.exercise.sets", value: exercise.sets)
                 exerciseMetric(title: "history.detail.exercise.completed_reps", value: exercise.completedReps)
+            }
+
+            HStack(alignment: .top, spacing: Spacing.sm) {
                 exerciseMetric(title: "history.detail.exercise.planned_reps", value: exercise.plannedReps)
                 exerciseMetric(title: "history.detail.exercise.rest", value: exercise.plannedRest)
             }
@@ -239,16 +266,17 @@ struct WorkoutHistoryDetailView: View {
     }
 
     private func exerciseMetric(title: LocalizedStringKey, value: String) -> some View {
-        LabeledContent {
-            Text(value)
-                .font(AppFont.caption)
-                .foregroundStyle(AppColor.textPrimary)
-                .multilineTextAlignment(.trailing)
-        } label: {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(title)
                 .font(AppFont.caption)
                 .foregroundStyle(AppColor.textSecondary)
+
+            Text(value)
+                .font(AppFont.caption)
+                .foregroundStyle(AppColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statusBadge(

@@ -16,6 +16,7 @@ struct AICoachCard: View {
                 .foregroundStyle(AppColor.textSecondary)
         }
         .padding(AppStyle.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColor.cardBackground)
         .clipShape(
             RoundedRectangle(cornerRadius: AppStyle.cornerRadius)

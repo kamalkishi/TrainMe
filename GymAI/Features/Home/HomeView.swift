@@ -26,7 +26,7 @@ struct HomeView: View {
         ScrollView {
 
             VStack(alignment: .leading,
-                   spacing: Spacing.xl) {
+                   spacing: Spacing.lg) {
 
                 GreetingHeader()
 
@@ -40,22 +40,22 @@ struct HomeView: View {
                             )
                             viewModel.continueActiveSession()
                         },
-                        onStartFreshConfirmed: {
+                        onSaveAndChooseAnotherConfirmed: {
                             WorkoutLifecycleLog.event(
-                                "HomeView.startFreshConfirmed",
+                                "HomeView.saveAndChooseAnotherConfirmed",
                                 WorkoutLifecycleLog.session(activeSession, label: "home.cardSession")
                             )
-                            let abandoned = viewModel.abandonActiveSession()
+                            let saved = viewModel.saveActiveSessionAndOpenWorkoutLibrary()
 
-                            if abandoned {
+                            if saved {
                                 WorkoutLifecycleLog.event(
-                                    "HomeView.startFreshOpeningWorkoutLibrary",
+                                    "HomeView.saveAndChooseAnotherOpeningWorkoutLibrary",
                                     ["navigationRouter.pathCount=\(router.path.count)"]
                                 )
                                 router.push(.workout)
                             }
 
-                            return abandoned
+                            return saved
                         }
                     )
                 } else {
@@ -66,7 +66,6 @@ struct HomeView: View {
 
                 AICoachCard()
 
-                Spacer(minLength: Spacing.lg)
             }
             .padding(AppStyle.screenPadding)
         }

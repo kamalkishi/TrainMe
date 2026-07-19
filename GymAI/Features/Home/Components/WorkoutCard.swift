@@ -7,14 +7,14 @@ struct WorkoutCard: View {
         VStack(alignment: .leading,
                spacing: Spacing.md) {
 
-            Label("Today's Workout",
+            Label("home.browse_workouts.label",
                   systemImage: "dumbbell.fill")
                 .font(AppFont.headline)
 
-            Text("Upper Body Strength")
+            Text("home.browse_workouts.title")
                 .font(AppFont.title)
 
-            Text("Estimated Duration: 45 min")
+            Text("home.browse_workouts.subtitle")
                 .font(AppFont.body)
                 .foregroundStyle(AppColor.textSecondary)
 
@@ -25,10 +25,11 @@ struct WorkoutCard: View {
                 )
                 router.push(.workout)
             } label: {
-                PrimaryButtonLabel(title: "Start Workout")
+                PrimaryButtonLabel(title: "home.browse_workouts.button")
             }
         }
         .padding(AppStyle.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColor.cardBackground)
         .clipShape(
             RoundedRectangle(
