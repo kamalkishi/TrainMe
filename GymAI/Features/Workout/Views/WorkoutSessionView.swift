@@ -9,6 +9,7 @@ struct WorkoutSessionView: View {
 
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var didNotifyManualFinish = false
+    @State private var isConfirmingFinishWorkout = false
 
     init(
         workout: Workout,
@@ -149,9 +150,7 @@ struct WorkoutSessionView: View {
                         "activeWorkoutViewModel.id=\(viewModel.diagnosticIdentifier)"
                     ] + WorkoutLifecycleLog.activeWorkout(viewModel.activeWorkout)
                 )
-                if let summary = viewModel.finishWorkout() {
-                    notifyManualFinish(summary)
-                }
+                isConfirmingFinishWorkout = true
             } label: {
                 Label("workout.finish", systemImage: "checkmark.circle")
                     .font(AppFont.headline)
@@ -161,6 +160,15 @@ struct WorkoutSessionView: View {
             .buttonStyle(.bordered)
             .tint(AppColor.secondary)
             .disabled(viewModel.isWorkoutCompleted || didNotifyManualFinish)
+        }
+        .alert("workout.finish.confirm_title", isPresented: $isConfirmingFinishWorkout) {
+            Button("common.cancel", role: .cancel) {}
+
+            Button("workout.finish.confirm_action", role: .destructive) {
+                performManualFinish()
+            }
+        } message: {
+            Text("workout.finish.confirm_message")
         }
         .padding(AppStyle.screenPadding)
         .navigationTitle("workout.title")
@@ -215,6 +223,12 @@ struct WorkoutSessionView: View {
         )
         onWorkoutCompleted(summary)
         return true
+    }
+
+    private func performManualFinish() {
+        if let summary = viewModel.finishWorkout() {
+            notifyManualFinish(summary)
+        }
     }
 
     private func notifyManualFinish(_ summary: WorkoutCompletionSummary) {
